@@ -530,7 +530,7 @@ plot1 <- ggplot(alpha1, aes(x = rho, y = mi, color = as.factor(r_cats))) +
     y = "prop. conformists w/ prop. trendsetter nbh. > φ",      
     color = expression("degree assortativity (" ~ r[kk] ~ ")")
   ) +
-  theme(legend.position = c(0.3, 0.8))
+  theme(legend.position = c(0.3, 0.8)) + ggtitle(paste0("α=", alpha1$alpha))
 
 plot2 <- ggplot(alpha2, aes(x = rho, y = mi, color = as.factor(r_cats))) +
   geom_point(alpha = 0.7, size = 2) +
@@ -541,7 +541,7 @@ plot2 <- ggplot(alpha2, aes(x = rho, y = mi, color = as.factor(r_cats))) +
     y = "prop. conformists w/ prop. trendsetter nbh. > φ",      
     color = expression("degree assortativity (" ~ r[kk] ~ ")")
   ) +
-  theme(legend.position = c(0.3, 0.8))
+  theme(legend.position = c(0.3, 0.8)) + ggtitle(paste0("α=", alpha2$alpha))
 
 plot3 <- ggplot(alpha3, aes(x = rho, y = mi, color = as.factor(r_cats))) +
   geom_point(alpha = 0.7, size = 2) +
@@ -552,7 +552,7 @@ plot3 <- ggplot(alpha3, aes(x = rho, y = mi, color = as.factor(r_cats))) +
     y = "prop. conformists w/ prop. trendsetter nbh. > φ",      
     color = expression("degree assortativity (" ~ r[kk] ~ ")")
   ) +
-  theme(legend.position = c(0.3, 0.8))
+  theme(legend.position = c(0.3, 0.8)) + ggtitle(paste0("α=", alpha3$alpha))
 
 #combine
 ggpubr::ggarrange(plot1,plot2,plot3,ncol=3) +
