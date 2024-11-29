@@ -1,0 +1,39 @@
+name: "Unpopular norms"
+author: 
+  - 'Rob Franken'
+date: "Last compiled on `r format(Systime(), '%B, %Y')`"
+output_dir: "docs"
+exclude: 
+  - "data"
+  - "rawdata"
+  - "processed"
+  - "local"
+  - "working_scripts"
+bibliography: references.bib
+navbar:
+  left:
+    - icon: fa-info
+      text: "About"
+      href: index.html
+    - icon: fas fa-users
+      text: "Agent-based model"
+      href: abm.html
+  right:
+    - icon: fab fa-github
+      href: https://github.com/robfranken/unpopular_norms
+output:
+  html_document:
+    theme: flatly
+    highlight: default
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+    css: tweaks.css
+    include:
+      after_body: footer.html
+
+
+
+

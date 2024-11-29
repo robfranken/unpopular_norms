@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>ABM</title>
+
+<script src="site_libs/header-attrs-2.25/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<script src="site_libs/navigation-1.1/codefolding.js"></script>
+<script src="site_libs/navigation-1.1/sourceembed.js"></script>
+<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/clipboard-1.7.1/clipboard.min.js"></script>
+<link href="site_libs/primer-tooltips-1.4.0/build.css" rel="stylesheet" />
+<link href="site_libs/klippy-0.0.0.9500/css/klippy.min.css" rel="stylesheet" />
+<script src="site_libs/klippy-0.0.0.9500/js/klippy.min.js"></script>
+<link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+<style type="text/css">
+#rmd-source-code {
+  display: none;
+}
+</style>
+
+
+<link rel="stylesheet" href="tweaks.css" type="text/css" />
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+<style type="text/css">
+.code-folding-btn { margin-bottom: 4px; }
+</style>
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html"></a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">
+    <span class="fa fa-info"></span>
+     
+    About
+  </a>
+</li>
+<li>
+  <a href="abm.html">
+    <span class="fas fa-users"></span>
+     
+    Agent-based model
+  </a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/robfranken/unpopular_norms">
+    <span class="fab fa-github"></span>
+     
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+<div class="btn-group pull-right float-right">
+<button type="button" class="btn btn-default btn-xs btn-secondary btn-sm dropdown-toggle" data-toggle="dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span>Code</span> <span class="caret"></span></button>
+<ul class="dropdown-menu dropdown-menu-right" style="min-width: 50px;">
+<li><a id="rmd-show-all-code" href="#">Show All Code</a></li>
+<li><a id="rmd-hide-all-code" href="#">Hide All Code</a></li>
+<li role="separator" class="divider"></li>
+<li><a id="rmd-download-source" href="#">Download Rmd</a></li>
+</ul>
+</div>
+
+
+
+<h1 class="title toc-ignore">ABM</h1>
+<h4 class="date">Last compiled on 29-11-2024</h4>
+
+</div>
+
+
+<script>
+  addClassKlippyTo("pre.r, pre.markdown");
+  addKlippy('right', 'top', 'auto', '1', 'Copy code', 'Copied!');
+</script>
+<hr />
+<pre class="r test"><code>rm(list = ls())
+gc()</code></pre>
+<pre class="r test"><code>fpackage.check &lt;- function(packages) {
+    lapply(packages, FUN = function(x) {
+        if (!require(x, character.only = TRUE)) {
+            install.packages(x, dependencies = TRUE)
+            library(x, character.only = TRUE)
+        }
+    })
+}
+
+fshowdf &lt;- function(x, ...) {
+    knitr::kable(x, digits = 2, &quot;html&quot;, ...) %&gt;%
+        kableExtra::kable_styling(bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;)) %&gt;%
+        kableExtra::scroll_box(width = &quot;100%&quot;, height = &quot;300px&quot;)
+}
+
+fsave &lt;- function(x, location = &quot;./data/processed/&quot;) {
+    if (location == &quot;./data/processed/&quot;) {
+        ifelse(!dir.exists(&quot;data&quot;), dir.create(&quot;data&quot;), FALSE)
+        ifelse(!dir.exists(&quot;data/processed&quot;), dir.create(&quot;data/processed&quot;), FALSE)
+    }
+    object = deparse(substitute(x))
+    datename &lt;- substr(gsub(&quot;[:-]&quot;, &quot;&quot;, Sys.time()), 1, 8)
+    totalname &lt;- paste(location, object, &quot;_&quot;, datename, &quot;.rda&quot;, sep = &quot;&quot;)
+    assign(eval(object), x, envir = .GlobalEnv)
+    print(paste(&quot;SAVED: &quot;, totalname, sep = &quot;&quot;))
+    save(list = object, file = totalname)
+}
+
+packages = c(&quot;tidyverse&quot;, &quot;igraph&quot;, &quot;grid&quot;, &quot;cowplot&quot;, &quot;purrr&quot;)
+fpackage.check(packages)
+rm(packages)
+
+# library(furrr) library(future) library(parallel)</code></pre>
+<hr />
+<div id="utility-function" class="section level1" number="1">
+<h1><span class="header-section-number">1</span> utility function</h1>
+<pre class="r test"><code>futility &lt;- function(agent_id, choice, agents, network, params) {
+  # get ego and his local neighborhood
+  ego &lt;- agents[agent_id, ]
+  neighbors &lt;- neighbors(network, ego$id)
+  alters &lt;- agents[as.numeric(neighbors), ]
+  n &lt;- nrow(alters)
+
+  # count number of neighbors who did (not) follow the trend
+  n1 &lt;- sum(alters$choice == 1)
+  n0 &lt;- sum(alters$choice == 0)
+  
+  # calculate expected utility (depending on alters&#39; choices in prior round)
+  if(ego$role == &quot;conformist&quot;) {
+    choice_payoff &lt;- ifelse(choice == 0, params$s, 0)
+    coordination_payoff &lt;- ifelse(choice == 0, # normalized by n
+                                  (params$w/n) * n0,
+                                  (params$z/n) * n1)
+  } else {
+    choice_payoff &lt;- ifelse(choice == 1, params$e, 0)
+    coordination_payoff &lt;- 0
+  }
+  return(list(utility = choice_payoff + coordination_payoff,
+              n1 = n1, n0 = n0))
+}</code></pre>
+<hr />
+</div>
+<div id="plot-network-graph" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> plot network graph</h1>
+<pre class="r test"><code>#visualize the network topology and agent positions (degree-trait correlation)
+fplot_graph &lt;- function(graph, main=NULL, layout_algo=NULL, 
+                        col1 = &quot;#FFD700&quot;, col2 = &quot;#800080&quot;) {
+  plot(graph,
+       main = main,
+       layout = layout_algo,
+       vertex.label = NA,
+       vertex.size = degree(graph) * 0.6 + 4, # node size based on degree
+       vertex.color = ifelse(V(graph)$role == &quot;trendsetter&quot;, col1, col2),
+       edge.width = 0.5,
+       edge.color = &quot;darkgrey&quot;)
+  #add legend
+  legend(&quot;bottomleft&quot;,
+         legend = c(&quot;Trendsetter&quot;, &quot;Conformist&quot;),
+         pch = 21,
+         col = c(col1,col2),
+         pt.bg = c(col1,col2),
+         pt.cex = 3,
+         bty = &quot;n&quot;)
+}</code></pre>
+<hr />
+</div>
+<div id="preferential-attachment-model" class="section level1"
+number="3">
+<h1><span class="header-section-number">3</span> preferential attachment
+model</h1>
+<pre class="r test"><code># scale-free network using preferential attachment algorithm
+n = 96
+m = 3
+alpha = 1.5
+t = 0.1
+network &lt;- sample_pa(n = n, m = m, power = alpha, directed = FALSE)
+V(network)$role &lt;- sample(c(rep(&quot;trendsetter&quot;, floor(n * t)), rep(&quot;conformist&quot;, n - floor(n * t))))
+sort(degree(network))</code></pre>
+<pre class="test3"><code>#&gt;  [1]  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3
+#&gt; [33]  3  3  3  3  3  3  3  3  3  3  4  4  4  4  4  4  4  4  4  4  4  4  4  4  4  4  4  4  4  4  4  5
+#&gt; [65]  5  5  5  5  5  5  5  6  6  6  6  6  6  7  8  8  8  9  9 10 10 10 10 11 11 12 13 24 26 26 29 37</code></pre>
+<pre class="r test"><code>fplot_graph(network)</code></pre>
+<p><img src="abm_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<hr />
+</div>
+<div id="configuration-model" class="section level1" number="4">
+<h1><span class="header-section-number">4</span> configuration
+model</h1>
+<pre class="r test"><code># generate random graphs based on a degree sequence generated by a power law distribution
+fdegseq &lt;- function(n, alpha, k_min = 1, k_max = n - 1) {
+    # sample degree sequence
+    degseq &lt;- sample(k_min:k_max, size = n, replace = TRUE, prob = (1/(k_min:k_max))^alpha)
+    # correct the degree sequence if its sum is odd (necessary for the configuration model)
+    if (sum(degseq)%%2 != 0) {
+        degseq[1] &lt;- degseq[1] + 1
+    }
+    return(degseq)
+}
+
+degseq &lt;- fdegseq(n = 96, alpha = 3.1, k_min = 3)
+network &lt;- sample_degseq(degseq, method = &quot;vl&quot;)
+is_simple(network)</code></pre>
+<pre class="test3"><code>#&gt; [1] TRUE</code></pre>
+<pre class="r test"><code>sort(degree(network))</code></pre>
+<pre class="test3"><code>#&gt;  [1]  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3  3
+#&gt; [33]  3  3  3  3  3  3  3  3  3  3  3  4  4  4  4  4  4  4  4  4  4  4  4  4  4  4  4  4  5  5  5  5
+#&gt; [65]  5  5  5  5  5  5  5  5  5  5  6  6  6  6  6  6  7  7  7  7  7  7  7  8  8  9 10 10 11 13 17 32</code></pre>
+<pre class="r test"><code># randomly assign roles, based on proportion trendsetters
+V(network)$role &lt;- sample(c(rep(&quot;trendsetter&quot;, floor(n * t)), rep(&quot;conformist&quot;, n - floor(n * t))))
+
+# visualize graph
+fplot_graph(network)</code></pre>
+<p><img src="abm_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<pre class="r test"><code># alpha 2.1 creates average degree of ~ 8.5 alpha 2.4 creates average degree of ~ 6.9 alpha 3.1
+# creates average degree of ~ 4.8 @RF: loop over high number of simulated configuration models to
+# get an accurate average &lt;k&gt;
+
+# to produce random networks with same average degree; tweak edge probability &lt;k&gt; = p * (n-1); with
+# p being edge probability p = &lt;k&gt; / (n-1) 8.5 / 95 ~ 0.09 6.9 / 95 ~ 0.07 4.8 / 95 ~ 0.05</code></pre>
+<hr />
+</div>
+<div id="rewiring-to-manipulate-degree-assortativity"
+class="section level1" number="5">
+<h1><span class="header-section-number">5</span> rewiring to manipulate
+degree-assortativity</h1>
+<pre class="r test"><code># rewiring function to adjust assortativity (r) to desired level; Newman:
+frewire_r &lt;- function(network, target_r, max_iter = 1e+05, tol = 0.01, verbose = TRUE) {
+
+    current_r &lt;- assortativity_degree(network)
+    iteration &lt;- 1
+
+    if (verbose) {
+        cat(&quot;Target assortativity coefficient:&quot;, target_r, &quot;\n&quot;)
+        cat(&quot;Starting assortativity coefficient:&quot;, current_r, &quot;\n&quot;)
+        cat(&quot;Tolerance:&quot;, tol, &quot;\n&quot;)
+    }
+
+    while (abs(current_r - target_r) &gt; tol &amp;&amp; iteration &lt; max_iter) {
+
+        # get network edges
+        edges &lt;- E(network)
+        # to edgelist
+        edge_list &lt;- ends(network, edges)
+
+        # randomly select two pairs of connected nodes
+        idx1 &lt;- sample(1:nrow(edge_list), 1)
+        idx2 &lt;- sample(1:nrow(edge_list), 1)
+
+        # extract node indices
+        u1 &lt;- edge_list[idx1, 1]  # node 1 of first edge
+        v1 &lt;- edge_list[idx1, 2]  # node 2 of first edge
+        u2 &lt;- edge_list[idx2, 1]  # etc
+        v2 &lt;- edge_list[idx2, 2]
+
+        # check if the two pairs of connected nodes (u1, v1; u2, v2) are disjoint
+        if (length(unique(c(u1, v1, u2, v2))) == 4) {
+            # check if there is already an edge across the node-pairs ensure no loops and no
+            # duplicate edges
+            if (!are_adjacent(network, u1, u2) &amp;&amp; !are_adjacent(network, v1, v2) &amp;&amp; u1 != v2 &amp;&amp; u2 !=
+                v1) {
+
+                # perform the edge swap (u1,v1) &lt;-&gt; (u2,v2) becomes (u1,v2) &lt;-&gt; (u2,v1)
+                new_network &lt;- network  # Copy network
+
+                # check if the new edges already exist to avoid duplicates
+                if (!are_adjacent(new_network, u1, v2) &amp;&amp; !are_adjacent(new_network, u2, v1)) {
+                  # add edges
+                  new_network &lt;- add_edges(new_network, c(u1, v2, u2, v1))
+                  # remove edges
+                  new_network &lt;- delete_edges(new_network, get.edge.ids(new_network, c(u1, v1, u2, v2)))
+
+                  # new assortativity
+                  new_r &lt;- assortativity_degree(new_network)
+
+                  # accept tie swap if it brings us closer to the target assortativity
+                  if (abs(new_r - target_r) &lt; abs(current_r - target_r)) {
+                    current_r &lt;- new_r
+                    network &lt;- new_network
+                    if (verbose) {
+                      cat(&quot;Rewiring at iteration&quot;, iteration, &quot;brought assortativity closer to target! Current assortativity coefficient:&quot;,
+                        new_r, &quot;\n&quot;)
+                    }
+                  }
+                }
+            }
+        }
+        iteration &lt;- iteration + 1
+    }
+
+    if (verbose) {
+        cat(&quot;Final assortativity coefficient:&quot;, current_r, &quot;\n&quot;)
+        if (abs(current_r - target_r) &lt;= tol) {
+            cat(&quot;Target reached within tolerance.\n&quot;)
+        } else {
+            cat(&quot;Reached maximum iterations without meeting target.\n&quot;)
+        }
+    }
+
+    return(network)
+}
+
+# initialize scale-free network
+degseq &lt;- fdegseq(n = 96, alpha = 2.4, k_min = 3)
+network &lt;- sample_degseq(degseq, method = &quot;vl&quot;)
+V(network)$role &lt;- sample(c(rep(&quot;trendsetter&quot;, floor(n * t)), rep(&quot;conformist&quot;, n - floor(n * t))))
+
+# get current assortativity coefficient
+assortativity_degree(network)</code></pre>
+<pre class="test3"><code>#&gt; [1] -0.2359417</code></pre>
+<pre class="r test"><code># set target
+target = -0.1
+network2 &lt;- frewire_r(network, target_r = target, max_iter = 1000)</code></pre>
+<pre class="test3"><code>#&gt; Target assortativity coefficient: -0.1 
+#&gt; Starting assortativity coefficient: -0.2359417 
+#&gt; Tolerance: 0.01 
+#&gt; Rewiring at iteration 5 brought assortativity closer to target! Current assortativity coefficient: -0.2359188 
+#&gt; Rewiring at iteration 23 brought assortativity closer to target! Current assortativity coefficient: -0.2358501 
+#&gt; Rewiring at iteration 25 brought assortativity closer to target! Current assortativity coefficient: -0.2355065 
+#&gt; Rewiring at iteration 30 brought assortativity closer to target! Current assortativity coefficient: -0.2352775 
+#&gt; Rewiring at iteration 34 brought assortativity closer to target! Current assortativity coefficient: -0.233388 
+#&gt; Rewiring at iteration 35 brought assortativity closer to target! Current assortativity coefficient: -0.232678 
+#&gt; Rewiring at iteration 39 brought assortativity closer to target! Current assortativity coefficient: -0.2322657 
+#&gt; Rewiring at iteration 43 brought assortativity closer to target! Current assortativity coefficient: -0.2321512 
+#&gt; Rewiring at iteration 50 brought assortativity closer to target! Current assortativity coefficient: -0.231968 
+#&gt; Rewiring at iteration 52 brought assortativity closer to target! Current assortativity coefficient: -0.2317847 
+#&gt; Rewiring at iteration 66 brought assortativity closer to target! Current assortativity coefficient: -0.2316473 
+#&gt; Rewiring at iteration 79 brought assortativity closer to target! Current assortativity coefficient: -0.2309602 
+#&gt; Rewiring at iteration 106 brought assortativity closer to target! Current assortativity coefficient: -0.2308686 
+#&gt; Rewiring at iteration 112 brought assortativity closer to target! Current assortativity coefficient: -0.2303876 
+#&gt; Rewiring at iteration 123 brought assortativity closer to target! Current assortativity coefficient: -0.227456 
+#&gt; Rewiring at iteration 124 brought assortativity closer to target! Current assortativity coefficient: -0.2273414 
+#&gt; Rewiring at iteration 128 brought assortativity closer to target! Current assortativity coefficient: -0.2273185 
+#&gt; Rewiring at iteration 129 brought assortativity closer to target! Current assortativity coefficient: -0.226975 
+#&gt; Rewiring at iteration 134 brought assortativity closer to target! Current assortativity coefficient: -0.2231272 
+#&gt; Rewiring at iteration 147 brought assortativity closer to target! Current assortativity coefficient: -0.2230585 
+#&gt; Rewiring at iteration 152 brought assortativity closer to target! Current assortativity coefficient: -0.2229898 
+#&gt; Rewiring at iteration 154 brought assortativity closer to target! Current assortativity coefficient: -0.2226691 
+#&gt; Rewiring at iteration 160 brought assortativity closer to target! Current assortativity coefficient: -0.2220049 
+#&gt; Rewiring at iteration 164 brought assortativity closer to target! Current assortativity coefficient: -0.2217759 
+#&gt; Rewiring at iteration 169 brought assortativity closer to target! Current assortativity coefficient: -0.2215125 
+#&gt; Rewiring at iteration 178 brought assortativity closer to target! Current assortativity coefficient: -0.2212835 
+#&gt; Rewiring at iteration 188 brought assortativity closer to target! Current assortativity coefficient: -0.2212606 
+#&gt; Rewiring at iteration 189 brought assortativity closer to target! Current assortativity coefficient: -0.2206193 
+#&gt; Rewiring at iteration 195 brought assortativity closer to target! Current assortativity coefficient: -0.2205849 
+#&gt; Rewiring at iteration 197 brought assortativity closer to target! Current assortativity coefficient: -0.2204475 
+#&gt; Rewiring at iteration 206 brought assortativity closer to target! Current assortativity coefficient: -0.2203559 
+#&gt; Rewiring at iteration 215 brought assortativity closer to target! Current assortativity coefficient: -0.2192909 
+#&gt; Rewiring at iteration 221 brought assortativity closer to target! Current assortativity coefficient: -0.2192794 
+#&gt; Rewiring at iteration 245 brought assortativity closer to target! Current assortativity coefficient: -0.218913 
+#&gt; Rewiring at iteration 250 brought assortativity closer to target! Current assortativity coefficient: -0.2188442 
+#&gt; Rewiring at iteration 254 brought assortativity closer to target! Current assortativity coefficient: -0.218432 
+#&gt; Rewiring at iteration 260 brought assortativity closer to target! Current assortativity coefficient: -0.2183633 
+#&gt; Rewiring at iteration 278 brought assortativity closer to target! Current assortativity coefficient: -0.2177449 
+#&gt; Rewiring at iteration 280 brought assortativity closer to target! Current assortativity coefficient: -0.2175158 
+#&gt; Rewiring at iteration 288 brought assortativity closer to target! Current assortativity coefficient: -0.2168287 
+#&gt; Rewiring at iteration 303 brought assortativity closer to target! Current assortativity coefficient: -0.2161874 
+#&gt; Rewiring at iteration 314 brought assortativity closer to target! Current assortativity coefficient: -0.2146758 
+#&gt; Rewiring at iteration 333 brought assortativity closer to target! Current assortativity coefficient: -0.2146185 
+#&gt; Rewiring at iteration 352 brought assortativity closer to target! Current assortativity coefficient: -0.2145727 
+#&gt; Rewiring at iteration 353 brought assortativity closer to target! Current assortativity coefficient: -0.2145155 
+#&gt; Rewiring at iteration 354 brought assortativity closer to target! Current assortativity coefficient: -0.2126603 
+#&gt; Rewiring at iteration 372 brought assortativity closer to target! Current assortativity coefficient: -0.2126145 
+#&gt; Rewiring at iteration 384 brought assortativity closer to target! Current assortativity coefficient: -0.2125343 
+#&gt; Rewiring at iteration 387 brought assortativity closer to target! Current assortativity coefficient: -0.2119159 
+#&gt; Rewiring at iteration 392 brought assortativity closer to target! Current assortativity coefficient: -0.2108509 
+#&gt; Rewiring at iteration 393 brought assortativity closer to target! Current assortativity coefficient: -0.2101409 
+#&gt; Rewiring at iteration 397 brought assortativity closer to target! Current assortativity coefficient: -0.2087209 
+#&gt; Rewiring at iteration 403 brought assortativity closer to target! Current assortativity coefficient: -0.2085835 
+#&gt; Rewiring at iteration 412 brought assortativity closer to target! Current assortativity coefficient: -0.2085606 
+#&gt; Rewiring at iteration 423 brought assortativity closer to target! Current assortativity coefficient: -0.2073925 
+#&gt; Rewiring at iteration 438 brought assortativity closer to target! Current assortativity coefficient: -0.2063389 
+#&gt; Rewiring at iteration 441 brought assortativity closer to target! Current assortativity coefficient: -0.2061099 
+#&gt; Rewiring at iteration 444 brought assortativity closer to target! Current assortativity coefficient: -0.2056976 
+#&gt; Rewiring at iteration 446 brought assortativity closer to target! Current assortativity coefficient: -0.2053541 
+#&gt; Rewiring at iteration 450 brought assortativity closer to target! Current assortativity coefficient: -0.2048502 
+#&gt; Rewiring at iteration 462 brought assortativity closer to target! Current assortativity coefficient: -0.2048158 
+#&gt; Rewiring at iteration 503 brought assortativity closer to target! Current assortativity coefficient: -0.2047357 
+#&gt; Rewiring at iteration 507 brought assortativity closer to target! Current assortativity coefficient: -0.2044608 
+#&gt; Rewiring at iteration 509 brought assortativity closer to target! Current assortativity coefficient: -0.2042776 
+#&gt; Rewiring at iteration 513 brought assortativity closer to target! Current assortativity coefficient: -0.204186 
+#&gt; Rewiring at iteration 514 brought assortativity closer to target! Current assortativity coefficient: -0.2031782 
+#&gt; Rewiring at iteration 528 brought assortativity closer to target! Current assortativity coefficient: -0.2031324 
+#&gt; Rewiring at iteration 531 brought assortativity closer to target! Current assortativity coefficient: -0.203121 
+#&gt; Rewiring at iteration 548 brought assortativity closer to target! Current assortativity coefficient: -0.2029607 
+#&gt; Rewiring at iteration 550 brought assortativity closer to target! Current assortativity coefficient: -0.2029149 
+#&gt; Rewiring at iteration 566 brought assortativity closer to target! Current assortativity coefficient: -0.2028691 
+#&gt; Rewiring at iteration 579 brought assortativity closer to target! Current assortativity coefficient: -0.202766 
+#&gt; Rewiring at iteration 581 brought assortativity closer to target! Current assortativity coefficient: -0.2021247 
+#&gt; Rewiring at iteration 618 brought assortativity closer to target! Current assortativity coefficient: -0.2017697 
+#&gt; Rewiring at iteration 621 brought assortativity closer to target! Current assortativity coefficient: -0.2001893 
+#&gt; Rewiring at iteration 643 brought assortativity closer to target! Current assortativity coefficient: -0.1999718 
+#&gt; Rewiring at iteration 661 brought assortativity closer to target! Current assortativity coefficient: -0.1999374 
+#&gt; Rewiring at iteration 668 brought assortativity closer to target! Current assortativity coefficient: -0.199926 
+#&gt; Rewiring at iteration 681 brought assortativity closer to target! Current assortativity coefficient: -0.1998916 
+#&gt; Rewiring at iteration 691 brought assortativity closer to target! Current assortativity coefficient: -0.1998458 
+#&gt; Rewiring at iteration 700 brought assortativity closer to target! Current assortativity coefficient: -0.1993648 
+#&gt; Rewiring at iteration 708 brought assortativity closer to target! Current assortativity coefficient: -0.1993076 
+#&gt; Rewiring at iteration 722 brought assortativity closer to target! Current assortativity coefficient: -0.1991014 
+#&gt; Rewiring at iteration 727 brought assortativity closer to target! Current assortativity coefficient: -0.1971775 
+#&gt; Rewiring at iteration 731 brought assortativity closer to target! Current assortativity coefficient: -0.1971317 
+#&gt; Rewiring at iteration 733 brought assortativity closer to target! Current assortativity coefficient: -0.1970859 
+#&gt; Rewiring at iteration 745 brought assortativity closer to target! Current assortativity coefficient: -0.1969485 
+#&gt; Rewiring at iteration 750 brought assortativity closer to target! Current assortativity coefficient: -0.1967424 
+#&gt; Rewiring at iteration 756 brought assortativity closer to target! Current assortativity coefficient: -0.1967195 
+#&gt; Rewiring at iteration 796 brought assortativity closer to target! Current assortativity coefficient: -0.1966966 
+#&gt; Rewiring at iteration 798 brought assortativity closer to target! Current assortativity coefficient: -0.1964332 
+#&gt; Rewiring at iteration 811 brought assortativity closer to target! Current assortativity coefficient: -0.1961583 
+#&gt; Rewiring at iteration 813 brought assortativity closer to target! Current assortativity coefficient: -0.1957804 
+#&gt; Rewiring at iteration 841 brought assortativity closer to target! Current assortativity coefficient: -0.1957575 
+#&gt; Rewiring at iteration 854 brought assortativity closer to target! Current assortativity coefficient: -0.1953796 
+#&gt; Rewiring at iteration 899 brought assortativity closer to target! Current assortativity coefficient: -0.1953338 
+#&gt; Rewiring at iteration 905 brought assortativity closer to target! Current assortativity coefficient: -0.1946009 
+#&gt; Rewiring at iteration 939 brought assortativity closer to target! Current assortativity coefficient: -0.194578 
+#&gt; Rewiring at iteration 960 brought assortativity closer to target! Current assortativity coefficient: -0.1945322 
+#&gt; Rewiring at iteration 973 brought assortativity closer to target! Current assortativity coefficient: -0.1944635 
+#&gt; Rewiring at iteration 982 brought assortativity closer to target! Current assortativity coefficient: -0.1943948 
+#&gt; Rewiring at iteration 985 brought assortativity closer to target! Current assortativity coefficient: -0.194223 
+#&gt; Final assortativity coefficient: -0.194223 
+#&gt; Reached maximum iterations without meeting target.</code></pre>
+<hr />
+</div>
+<div id="swapping-traits-to-manipulate-degree-trait-correlation"
+class="section level1" number="6">
+<h1><span class="header-section-number">6</span> swapping traits to
+manipulate degree-trait correlation</h1>
+<pre class="r test"><code># we manipulate degree-trait correlation (rho) by swapping attribute values among the nodes. To
+# increase \rho_{kx}, we randomly choose nodes v_1 with x=1 and v_0 with x=0 and swap their
+# attributes if the degree of the degree of v_0 is greater than that of v_1 (until the desired
+# \rho_{kx} is reached; or it no longer changes).
+fdegtraitcor &lt;- function(network) {
+    roles &lt;- ifelse(V(network)$role == &quot;trendsetter&quot;, 1, 0)
+    degrees &lt;- degree(network)
+    return(list(cor = cor(roles, degrees), roles = roles, degrees = degrees))
+}
+
+# swapping function to adjust degree-trait correlation
+fswap_rho &lt;- function(network, target_rho, max_iter = 1000, tol = 0.05, verbose = TRUE) {
+
+    current &lt;- fdegtraitcor(network)
+    iteration &lt;- 1
+    best_network &lt;- network
+    best_rho &lt;- current$cor
+
+    if (verbose) {
+        cat(&quot;Target degree-trait correlation:&quot;, target_rho, &quot;\n&quot;)
+        cat(&quot;Starting degree-trait correlation:&quot;, current$cor, &quot;\n&quot;)
+        cat(&quot;Tolerance:&quot;, tol, &quot;\n\n&quot;)
+    }
+
+    while (iteration &lt;= max_iter) {
+        # check if we are already within tolerance
+        if (abs(current$cor - target_rho) &lt;= tol) {
+            if (verbose)
+                cat(&quot;Target reached within tolerance at iteration&quot;, iteration, &quot;.\n&quot;)
+            break
+        }
+
+        # randomly select nodes for swapping
+        v1 &lt;- sample(which(current$roles == 1), 1)
+        v0 &lt;- sample(which(current$roles == 0), 1)
+
+        # get degrees of selected nodes
+        k1 &lt;- current$degrees[v1]
+        k0 &lt;- current$degrees[v0]
+
+        # swap roles if condition k_v0 &gt; k_v1 is met
+        if (k0 &gt; k1) {
+            current$roles[v1] &lt;- 0
+            current$roles[v0] &lt;- 1
+
+            # update graph roles
+            V(network)$role &lt;- ifelse(current$roles == 1, &quot;trendsetter&quot;, &quot;conformist&quot;)
+
+            # recalculate degree-trait correlation
+            current &lt;- fdegtraitcor(network)
+
+            # check if this is the closest correlation to the target so far
+            if (abs(current$cor - target_rho) &lt; abs(best_rho - target_rho)) {
+                best_network &lt;- network
+                best_rho &lt;- current$cor
+                if (verbose) {
+                  cat(&quot;Trait-swapping at iteration&quot;, iteration, &quot;brought correlation closer to target! Current correlation:&quot;,
+                    current$cor, &quot;\n&quot;)
+                }
+            }
+        }
+        iteration &lt;- iteration + 1
+    }
+
+    # check if the final correlation is worse than the best correlation
+    final_correlation &lt;- current$cor
+    if (abs(final_correlation - target_rho) &gt; abs(best_rho - target_rho)) {
+        if (verbose) {
+            cat(&quot;\nWarning: Final iteration made the correlation worse. Reverting to best observed correlation.\n&quot;)
+        }
+    }
+
+    if (verbose) {
+        cat(&quot;\nFinal degree-trait correlation:&quot;, best_rho, &quot;\n&quot;)
+        if (abs(best_rho - target_rho) &lt;= tol) {
+            cat(&quot;Target reached within tolerance.\n&quot;)
+        } else if (iteration &gt; max_iter) {
+            cat(&quot;Reached maximum iterations without meeting target.\n&quot;)
+        }
+    }
+    return(best_network)
+}
+
+fdegtraitcor(network)</code></pre>
+<pre class="test3"><code>#&gt; $cor
+#&gt; [1] -0.0617054
+#&gt; 
+#&gt; $roles
+#&gt;  [1] 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0 0 0 0 0 0 1 1 0 0 0 1
+#&gt; [49] 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0 0 0 1 0 0
+#&gt; 
+#&gt; $degrees
+#&gt;  [1]  4  7  7  5  3  5  3  6  3  6  3  3  7  3  3  3  5  5  5 10  6  3 36  9  4  3  4  3  8  3  3  4
+#&gt; [33]  9  3  3  3  3  7  4  3 11  3  5  4  3  3  4  9  4  5  3  6  3  3  6 59  7 14 23  5  3  4  5  7
+#&gt; [65]  8  4  3  4  5  5  3  3  5  3  4  9  4  3  4  3  5  3  8 26  3  7 10  6  3  5 13  4  3  3  3  4</code></pre>
+<pre class="r test"><code>target = 0.5
+fdegtraitcor(fswap_rho(network = network, target_rho = target, tol = 0.01))</code></pre>
+<pre class="test3"><code>#&gt; Target degree-trait correlation: 0.5 
+#&gt; Starting degree-trait correlation: -0.0617054 
+#&gt; Tolerance: 0.01 
+#&gt; 
+#&gt; Trait-swapping at iteration 3 brought correlation closer to target! Current correlation: -0.05676897 
+#&gt; Trait-swapping at iteration 8 brought correlation closer to target! Current correlation: -0.05183254 
+#&gt; Trait-swapping at iteration 9 brought correlation closer to target! Current correlation: -0.04689611 
+#&gt; Trait-swapping at iteration 10 brought correlation closer to target! Current correlation: -0.04195968 
+#&gt; Trait-swapping at iteration 15 brought correlation closer to target! Current correlation: -0.03208681 
+#&gt; Trait-swapping at iteration 17 brought correlation closer to target! Current correlation: 0.06664184 
+#&gt; Trait-swapping at iteration 18 brought correlation closer to target! Current correlation: 0.07157827 
+#&gt; Trait-swapping at iteration 19 brought correlation closer to target! Current correlation: 0.08638757 
+#&gt; Trait-swapping at iteration 21 brought correlation closer to target! Current correlation: 0.1110697 
+#&gt; Trait-swapping at iteration 25 brought correlation closer to target! Current correlation: 0.1160062 
+#&gt; Trait-swapping at iteration 29 brought correlation closer to target! Current correlation: 0.1209426 
+#&gt; Trait-swapping at iteration 30 brought correlation closer to target! Current correlation: 0.1406883 
+#&gt; Trait-swapping at iteration 31 brought correlation closer to target! Current correlation: 0.1456248 
+#&gt; Trait-swapping at iteration 40 brought correlation closer to target! Current correlation: 0.1653705 
+#&gt; Trait-swapping at iteration 49 brought correlation closer to target! Current correlation: 0.1752433 
+#&gt; Trait-swapping at iteration 67 brought correlation closer to target! Current correlation: 0.1851162 
+#&gt; Trait-swapping at iteration 69 brought correlation closer to target! Current correlation: 0.2048619 
+#&gt; Trait-swapping at iteration 89 brought correlation closer to target! Current correlation: 0.2295441 
+#&gt; Trait-swapping at iteration 91 brought correlation closer to target! Current correlation: 0.4862386 
+#&gt; Trait-swapping at iteration 156 brought correlation closer to target! Current correlation: 0.5059843 
+#&gt; Target reached within tolerance at iteration 157 .
+#&gt; 
+#&gt; Final degree-trait correlation: 0.5059843 
+#&gt; Target reached within tolerance.</code></pre>
+<pre class="test3"><code>#&gt; $cor
+#&gt; [1] 0.5059843
+#&gt; 
+#&gt; $roles
+#&gt;  [1] 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0
+#&gt; [49] 0 0 0 0 0 0 0 1 0 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0 0 0 0
+#&gt; 
+#&gt; $degrees
+#&gt;  [1]  4  7  7  5  3  5  3  6  3  6  3  3  7  3  3  3  5  5  5 10  6  3 36  9  4  3  4  3  8  3  3  4
+#&gt; [33]  9  3  3  3  3  7  4  3 11  3  5  4  3  3  4  9  4  5  3  6  3  3  6 59  7 14 23  5  3  4  5  7
+#&gt; [65]  8  4  3  4  5  5  3  3  5  3  4  9  4  3  4  3  5  3  8 26  3  7 10  6  3  5 13  4  3  3  3  4</code></pre>
+<pre class="r test"><code>fplot_graph(network, main = paste0(&quot;configuration model\ndegree sequence generated from p(k)~k^{-α}\nN=96; prop. trendsetter = 0.1; α=2.4; k_min=3\nr_kk = &quot;,
+    round(assortativity_degree(network), 3), &quot;; p_kx = &quot;, round(fdegtraitcor(network)$cor, 3)))</code></pre>
+<p><img src="abm_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<pre class="r test"><code>network2 &lt;- frewire_r(network, target_r = -0.1, max_iter = 1e+05, verbose = FALSE)
+
+fplot_graph(network2, main = paste0(&quot;configuration model\ndegree sequence generated from p(k)~k^{-α}\nN=96; prop. trendsetter = 0.1; α=2.4; k_min=3\nr_kk = &quot;,
+    round(assortativity_degree(network2), 3), &quot;; p_kx = &quot;, round(fdegtraitcor(network2)$cor, 3)))</code></pre>
+<p><img src="abm_files/figure-html/unnamed-chunk-8-2.png" width="672" /></p>
+<pre class="r test"><code>network3 &lt;- fswap_rho(network2, target_rho = 0.5, max_iter = 1e+05, verbose = FALSE)
+
+fplot_graph(network3, main = paste0(&quot;configuration model\ndegree sequence generated from p(k)~k^{-α}\nN=96; prop. trendsetter = 0.1; α=2.4; k_min=3\nr_kk = &quot;,
+    round(assortativity_degree(network3), 3), &quot;; p_kx = &quot;, round(fdegtraitcor(network3)$cor, 3)))</code></pre>
+<p><img src="abm_files/figure-html/unnamed-chunk-8-3.png" width="672" /></p>
+<hr />
+<p>Simulate scale-free networks with independently varied degree
+distribution, degree assortativity, and degree-trait correlation:</p>
+<pre class="r test"><code># structural parameters
+n = 96
+k_min = 3
+p_t = 0.1
+
+# target parameters
+alphas &lt;- c(2.1, 2.4, 3.1)
+target_r_values &lt;- seq(-0.4, 0.4, by = 0.1)
+target_rho_values &lt;- seq(0, 0.6, by = 0.1)
+
+# list for results
+results &lt;- list()
+
+for (alpha in alphas) {
+    # loop over alpha
+
+    # generate degree sequence from power law with alpha
+    degseq &lt;- fdegseq(n = n, alpha = alpha, k_min = k_min)
+
+    # create undirected, connected, simple graph using Viger-Latapy algorithm
+    network &lt;- sample_degseq(degseq, method = &quot;vl&quot;)
+
+    # assign roles randomly, based on proportion trendsetter p_t
+    V(network)$role &lt;- sample(c(rep(&quot;trendsetter&quot;, floor(n * t)), rep(&quot;conformist&quot;, n - floor(n * t))))
+
+    for (target_r in target_r_values) {
+        # loop over target_r values
+        rewired_network &lt;- frewire_r(network, target_r, verbose = FALSE, max_iter = 10000)
+        actual_r &lt;- assortativity_degree(rewired_network)
+
+        for (target_rho in target_rho_values) {
+            # loop over target_rho values
+            final_network &lt;- fswap_rho(rewired_network, target_rho, verbose = FALSE, max_iter = 10000)
+            final_rho &lt;- fdegtraitcor(final_network)$cor
+
+            # store results
+            results &lt;- append(results, list(list(alpha = alpha, target_r = target_r, actual_r = actual_r,
+                target_rho = target_rho, actual_rho = final_rho, network = final_network)))
+        }
+    }
+}
+
+# save(results, file = &#39;./data/networks.rda&#39;)</code></pre>
+<pre class="r test"><code># load in the generated networks
+load(&quot;./data/networks.rda&quot;)
+
+# function to calculate magnitude of majority illusion; over different network structures;
+calculate_majority_illusion &lt;- function(network, threshold = 0.5) {
+    roles &lt;- V(network)$role
+
+    # initialize counter for majority illusion
+    mi_count &lt;- 0
+
+    # loop over conformists
+    for (v in V(network)) {
+        if (roles[v] == &quot;conformist&quot;) {
+            neighbors &lt;- neighbors(network, v)
+            trend_neighbors &lt;- sum(roles[neighbors] == &quot;trendsetter&quot;)
+            prop_trend &lt;- trend_neighbors/length(neighbors)
+
+            if (prop_trend &gt; threshold) {
+                mi_count &lt;- mi_count + 1
+            }
+        }
+    }
+    # return fraction of conformists who have majority illusion
+    return(mi_count/sum(roles == &quot;conformist&quot;))
+}
+
+plotdata &lt;- do.call(rbind, lapply(results, function(res) {
+    alpha &lt;- res$alpha
+    r &lt;- res$actual_r
+    rho &lt;- res$actual_rho
+    network &lt;- res$network
+
+    # calculate the majority illusion (i.e., the proportion of conformists whose neighbors meet or
+    # exceed threshold φ)
+    mi &lt;- calculate_majority_illusion(network)
+
+    # create a dataframe
+    data.frame(alpha = alpha, r = r, rho = rho, mi = mi)
+}))
+
+# make separate dataframes for each level of alpha
+alpha1 &lt;- plotdata[plotdata$alpha == unique(plotdata$alpha)[1], ]
+alpha2 &lt;- plotdata[plotdata$alpha == unique(plotdata$alpha)[2], ]
+alpha3 &lt;- plotdata[plotdata$alpha == unique(plotdata$alpha)[3], ]
+
+# create bins for r (deg-assorativity)
+fcreate_bins &lt;- function(data, variable = &quot;r&quot;) {
+    rvals &lt;- data[[variable]]
+    quant &lt;- quantile(rvals, probs = seq(0, 1, length.out = 6))
+    # generate labels dynamically
+    labels &lt;- sapply(1:(length(quant) - 1), function(i) {
+        paste0(round(quant[i], 2), &quot; &lt; r ≤ &quot;, round(quant[i + 1], 2))
+    })
+    # add categories to the dataset
+    data$r_cats &lt;- cut(rvals, breaks = quant, include.lowest = TRUE, labels = labels)
+    return(data)
+}
+
+# apply binning to each subset
+alpha1 &lt;- fcreate_bins(alpha1)
+alpha2 &lt;- fcreate_bins(alpha2)
+alpha3 &lt;- fcreate_bins(alpha3)
+
+# plot
+plot1 &lt;- ggplot(alpha1, aes(x = rho, y = mi, color = as.factor(r_cats))) + geom_point(alpha = 0.7, size = 2) +
+    geom_smooth(se = FALSE, method = &quot;loess&quot;) + scale_y_continuous(limits = c(0, 0.3)) + labs(x = expression(&quot;degree-trait correlation (&quot; ~
+    rho[kx] ~ &quot;)&quot;), y = &quot;prop. conformists w/ prop. trendsetter nbh. &gt; φ&quot;, color = expression(&quot;degree assortativity (&quot; ~
+    r[kk] ~ &quot;)&quot;)) + theme(legend.position = c(0.3, 0.8))
+
+plot2 &lt;- ggplot(alpha2, aes(x = rho, y = mi, color = as.factor(r_cats))) + geom_point(alpha = 0.7, size = 2) +
+    geom_smooth(se = FALSE, method = &quot;loess&quot;) + scale_y_continuous(limits = c(0, 0.3)) + labs(x = expression(&quot;degree-trait correlation (&quot; ~
+    rho[kx] ~ &quot;)&quot;), y = &quot;prop. conformists w/ prop. trendsetter nbh. &gt; φ&quot;, color = expression(&quot;degree assortativity (&quot; ~
+    r[kk] ~ &quot;)&quot;)) + theme(legend.position = c(0.3, 0.8))
+
+plot3 &lt;- ggplot(alpha3, aes(x = rho, y = mi, color = as.factor(r_cats))) + geom_point(alpha = 0.7, size = 2) +
+    geom_smooth(se = FALSE, method = &quot;loess&quot;) + scale_y_continuous(limits = c(0, 0.3)) + labs(x = expression(&quot;degree-trait correlation (&quot; ~
+    rho[kx] ~ &quot;)&quot;), y = &quot;prop. conformists w/ prop. trendsetter nbh. &gt; φ&quot;, color = expression(&quot;degree assortativity (&quot; ~
+    r[kk] ~ &quot;)&quot;)) + theme(legend.position = c(0.3, 0.8))
+
+# combine
+ggpubr::ggarrange(plot1, plot2, plot3, ncol = 3) + ggtitle(&quot;Majority illusion in scale-free networks&quot;) +
+    theme(plot.title = element_text(hjust = 0.5, face = &quot;bold&quot;, size = 16))</code></pre>
+<p><img src="abm_files/figure-html/unnamed-chunk-10-1.png" width="1152" /></p>
+</div>
+
+<div id="rmd-source-code">LS0tDQp0aXRsZTogIkFCTSINCmJpYmxpb2dyYXBoeTogcmVmZXJlbmNlcy5iaWINCmxpbmstY2l0YXRpb25zOiB0cnVlDQpkYXRlOiAiTGFzdCBjb21waWxlZCBvbiBgciBmb3JtYXQoU3lzLnRpbWUoKSwgJyVkLSVtLSVZJylgIg0Kb3V0cHV0OiANCiAgaHRtbF9kb2N1bWVudDoNCiAgICBjc3M6IHR3ZWFrcy5jc3MNCiAgICB0b2M6ICB0cnVlDQogICAgdG9jX2Zsb2F0OiB0cnVlDQogICAgbnVtYmVyX3NlY3Rpb25zOiB0cnVlDQogICAgdG9jX2RlcHRoOiA0DQogICAgY29kZV9mb2xkaW5nOiBzaG93DQogICAgY29kZV9kb3dubG9hZDogeWVzDQotLS0NCg0KYGBge3IsIGdsb2JhbHNldHRpbmdzLCBlY2hvPUZBTFNFLCB3YXJuaW5nPUZBTFNFLCByZXN1bHRzPSdoaWRlJywgbWVzc2FnZT1GQUxTRX0NCmxpYnJhcnkoa25pdHIpDQpsaWJyYXJ5KHRpZHl2ZXJzZSkNCmtuaXRyOjpvcHRzX2NodW5rJHNldChlY2hvID0gVFJVRSkNCm9wdHNfY2h1bmskc2V0KHRpZHkub3B0cz1saXN0KHdpZHRoLmN1dG9mZj0xMDApLHRpZHk9VFJVRSwgd2FybmluZyA9IEZBTFNFLCBtZXNzYWdlID0gRkFMU0UsY29tbWVudCA9ICIjPiIsIGNhY2hlPVRSVUUsIGNsYXNzLnNvdXJjZT1jKCJ0ZXN0IiksIGNsYXNzLm91dHB1dD1jKCJ0ZXN0MyIpKQ0Kb3B0aW9ucyh3aWR0aCA9IDEwMCkNCnJnbDo6c2V0dXBLbml0cigpDQoNCmNvbG9yaXplIDwtIGZ1bmN0aW9uKHgsIGNvbG9yKSB7c3ByaW50ZigiPHNwYW4gc3R5bGU9J2NvbG9yOiAlczsnPiVzPC9zcGFuPiIsIGNvbG9yLCB4KSB9DQpgYGANCg0KDQpgYGB7ciBrbGlwcHksIGVjaG89RkFMU0UsIGluY2x1ZGU9VFJVRX0NCmtsaXBweTo6a2xpcHB5KHBvc2l0aW9uID0gYygndG9wJywgJ3JpZ2h0JykpDQoja2xpcHB5OjprbGlwcHkoY29sb3IgPSAnZGFya3JlZCcpDQoja2xpcHB5OjprbGlwcHkodG9vbHRpcF9tZXNzYWdlID0gJ0NsaWNrIHRvIGNvcHknLCB0b29sdGlwX3N1Y2Nlc3MgPSAnRG9uZScpDQpgYGANCg0KLS0tICANCg0KDQpgYGB7ciwgcmVzdWx0cz0naGlkZSd9DQpybShsaXN0PWxzKCkpDQpnYygpDQpgYGANCg0KYGBge3IsIHBhY2thZ2VzLCB3YXJuaW5nPUZBTFNFLCBtZXNzYWdlPUZBTFNFLCByZXN1bHRzPSdoaWRlJ30NCmZwYWNrYWdlLmNoZWNrIDwtIGZ1bmN0aW9uKHBhY2thZ2VzKSB7DQogICAgbGFwcGx5KHBhY2thZ2VzLCBGVU4gPSBmdW5jdGlvbih4KSB7DQogICAgICAgIGlmICghcmVxdWlyZSh4LCBjaGFyYWN0ZXIub25seSA9IFRSVUUpKSB7DQogICAgICAgICAgICBpbnN0YWxsLnBhY2thZ2VzKHgsIGRlcGVuZGVuY2llcyA9IFRSVUUpDQogICAgICAgICAgICBsaWJyYXJ5KHgsIGNoYXJhY3Rlci5vbmx5ID0gVFJVRSkNCiAgICAgICAgfQ0KICAgIH0pDQp9DQoNCmZzaG93ZGYgPC0gZnVuY3Rpb24oeCwgLi4uKSB7DQogICAga25pdHI6OmthYmxlKHgsIGRpZ2l0cyA9IDIsICJodG1sIiwgLi4uKSAlPiUNCiAgICAgICAga2FibGVFeHRyYTo6a2FibGVfc3R5bGluZyhib290c3RyYXBfb3B0aW9ucyA9IGMoInN0cmlwZWQiLCAiaG92ZXIiKSkgJT4lDQogICAgICAgIGthYmxlRXh0cmE6OnNjcm9sbF9ib3god2lkdGggPSAiMTAwJSIsIGhlaWdodCA9ICIzMDBweCIpDQp9DQoNCmZzYXZlIDwtIGZ1bmN0aW9uKHgsIGxvY2F0aW9uID0gIi4vZGF0YS9wcm9jZXNzZWQvIikgew0KICBpZiAobG9jYXRpb24gPT0gIi4vZGF0YS9wcm9jZXNzZWQvIikgew0KICBpZmVsc2UoIWRpci5leGlzdHMoImRhdGEiKSwgZGlyLmNyZWF0ZSgiZGF0YSIpLCBGQUxTRSkNCiAgaWZlbHNlKCFkaXIuZXhpc3RzKCJkYXRhL3Byb2Nlc3NlZCIpLCBkaXIuY3JlYXRlKCJkYXRhL3Byb2Nlc3NlZCIpLCBGQUxTRSkNCiAgfQ0KICBvYmplY3QgPSBkZXBhcnNlKHN1YnN0aXR1dGUoeCkpDQogIGRhdGVuYW1lIDwtIHN1YnN0cihnc3ViKCJbOi1dIiwgIiIsIFN5cy50aW1lKCkpLCAxLCA4KQ0KICB0b3RhbG5hbWUgPC0gcGFzdGUobG9jYXRpb24sIG9iamVjdCwgIl8iLCBkYXRlbmFtZSwgICIucmRhIiwgc2VwID0gIiIpDQogIGFzc2lnbihldmFsKG9iamVjdCksIHgsIGVudmlyID0gLkdsb2JhbEVudikNCiAgcHJpbnQocGFzdGUoIlNBVkVEOiAiLCB0b3RhbG5hbWUsIHNlcCA9ICIiKSkNCiAgc2F2ZShsaXN0ID0gb2JqZWN0LCBmaWxlID0gdG90YWxuYW1lKSAgDQp9DQoNCnBhY2thZ2VzID0gYygidGlkeXZlcnNlIiwgImlncmFwaCIsICJncmlkIiwgImNvd3Bsb3QiLCAicHVycnIiKQ0KZnBhY2thZ2UuY2hlY2socGFja2FnZXMpDQpybShwYWNrYWdlcykNCg0KI2xpYnJhcnkoZnVycnIpDQojbGlicmFyeShmdXR1cmUpDQojbGlicmFyeShwYXJhbGxlbCkNCmBgYA0KDQotLS0NCg0KIyB1dGlsaXR5IGZ1bmN0aW9uDQoNCmBgYHtyfQ0KZnV0aWxpdHkgPC0gZnVuY3Rpb24oYWdlbnRfaWQsIGNob2ljZSwgYWdlbnRzLCBuZXR3b3JrLCBwYXJhbXMpIHsNCiAgIyBnZXQgZWdvIGFuZCBoaXMgbG9jYWwgbmVpZ2hib3Job29kDQogIGVnbyA8LSBhZ2VudHNbYWdlbnRfaWQsIF0NCiAgbmVpZ2hib3JzIDwtIG5laWdoYm9ycyhuZXR3b3JrLCBlZ28kaWQpDQogIGFsdGVycyA8LSBhZ2VudHNbYXMubnVtZXJpYyhuZWlnaGJvcnMpLCBdDQogIG4gPC0gbnJvdyhhbHRlcnMpDQoNCiAgIyBjb3VudCBudW1iZXIgb2YgbmVpZ2hib3JzIHdobyBkaWQgKG5vdCkgZm9sbG93IHRoZSB0cmVuZA0KICBuMSA8LSBzdW0oYWx0ZXJzJGNob2ljZSA9PSAxKQ0KICBuMCA8LSBzdW0oYWx0ZXJzJGNob2ljZSA9PSAwKQ0KICANCiAgIyBjYWxjdWxhdGUgZXhwZWN0ZWQgdXRpbGl0eSAoZGVwZW5kaW5nIG9uIGFsdGVycycgY2hvaWNlcyBpbiBwcmlvciByb3VuZCkNCiAgaWYoZWdvJHJvbGUgPT0gImNvbmZvcm1pc3QiKSB7DQogICAgY2hvaWNlX3BheW9mZiA8LSBpZmVsc2UoY2hvaWNlID09IDAsIHBhcmFtcyRzLCAwKQ0KICAgIGNvb3JkaW5hdGlvbl9wYXlvZmYgPC0gaWZlbHNlKGNob2ljZSA9PSAwLCAjIG5vcm1hbGl6ZWQgYnkgbg0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIChwYXJhbXMkdy9uKSAqIG4wLA0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIChwYXJhbXMkei9uKSAqIG4xKQ0KICB9IGVsc2Ugew0KICAgIGNob2ljZV9wYXlvZmYgPC0gaWZlbHNlKGNob2ljZSA9PSAxLCBwYXJhbXMkZSwgMCkNCiAgICBjb29yZGluYXRpb25fcGF5b2ZmIDwtIDANCiAgfQ0KICByZXR1cm4obGlzdCh1dGlsaXR5ID0gY2hvaWNlX3BheW9mZiArIGNvb3JkaW5hdGlvbl9wYXlvZmYsDQogICAgICAgICAgICAgIG4xID0gbjEsIG4wID0gbjApKQ0KfQ0KYGBgDQoNCg0KLS0tLQ0KDQojIHBsb3QgbmV0d29yayBncmFwaA0KDQpgYGB7cn0NCiN2aXN1YWxpemUgdGhlIG5ldHdvcmsgdG9wb2xvZ3kgYW5kIGFnZW50IHBvc2l0aW9ucyAoZGVncmVlLXRyYWl0IGNvcnJlbGF0aW9uKQ0KZnBsb3RfZ3JhcGggPC0gZnVuY3Rpb24oZ3JhcGgsIG1haW49TlVMTCwgbGF5b3V0X2FsZ289TlVMTCwgDQogICAgICAgICAgICAgICAgICAgICAgICBjb2wxID0gIiNGRkQ3MDAiLCBjb2wyID0gIiM4MDAwODAiKSB7DQogIHBsb3QoZ3JhcGgsDQogICAgICAgbWFpbiA9IG1haW4sDQogICAgICAgbGF5b3V0ID0gbGF5b3V0X2FsZ28sDQogICAgICAgdmVydGV4LmxhYmVsID0gTkEsDQogICAgICAgdmVydGV4LnNpemUgPSBkZWdyZWUoZ3JhcGgpICogMC42ICsgNCwgIyBub2RlIHNpemUgYmFzZWQgb24gZGVncmVlDQogICAgICAgdmVydGV4LmNvbG9yID0gaWZlbHNlKFYoZ3JhcGgpJHJvbGUgPT0gInRyZW5kc2V0dGVyIiwgY29sMSwgY29sMiksDQogICAgICAgZWRnZS53aWR0aCA9IDAuNSwNCiAgICAgICBlZGdlLmNvbG9yID0gImRhcmtncmV5IikNCiAgI2FkZCBsZWdlbmQNCiAgbGVnZW5kKCJib3R0b21sZWZ0IiwNCiAgICAgICAgIGxlZ2VuZCA9IGMoIlRyZW5kc2V0dGVyIiwgIkNvbmZvcm1pc3QiKSwNCiAgICAgICAgIHBjaCA9IDIxLA0KICAgICAgICAgY29sID0gYyhjb2wxLGNvbDIpLA0KICAgICAgICAgcHQuYmcgPSBjKGNvbDEsY29sMiksDQogICAgICAgICBwdC5jZXggPSAzLA0KICAgICAgICAgYnR5ID0gIm4iKQ0KfQ0KYGBgDQoNCi0tLS0NCg0KIyBwcmVmZXJlbnRpYWwgYXR0YWNobWVudCBtb2RlbA0KDQpgYGB7cn0NCiMgc2NhbGUtZnJlZSBuZXR3b3JrIHVzaW5nIHByZWZlcmVudGlhbCBhdHRhY2htZW50IGFsZ29yaXRobQ0KbiA9IDk2DQptID0gMw0KYWxwaGEgPSAxLjUNCnQgPSAuMQ0KbmV0d29yayA8LSBzYW1wbGVfcGEobiA9IG4sIG0gPSBtLCBwb3dlciA9IGFscGhhLCBkaXJlY3RlZCA9IEZBTFNFKQ0KVihuZXR3b3JrKSRyb2xlIDwtIHNhbXBsZShjKHJlcCgidHJlbmRzZXR0ZXIiLCBmbG9vcihuKnQpKSwgcmVwKCJjb25mb3JtaXN0IiwgbiAtIGZsb29yKG4qdCkpKSkNCnNvcnQoZGVncmVlKG5ldHdvcmspKQ0KZnBsb3RfZ3JhcGgobmV0d29yaykNCmBgYCANCg0KDQotLS0NCg0KDQojIGNvbmZpZ3VyYXRpb24gbW9kZWwNCg0KYGBge3J9DQojIGdlbmVyYXRlIHJhbmRvbSBncmFwaHMgYmFzZWQgb24gYSBkZWdyZWUgc2VxdWVuY2UgZ2VuZXJhdGVkIGJ5IGEgcG93ZXIgbGF3IGRpc3RyaWJ1dGlvbg0KZmRlZ3NlcSA8LSBmdW5jdGlvbihuLCBhbHBoYSwga19taW4gPSAxLCBrX21heCA9IG4tMSkgew0KICAjIHNhbXBsZSBkZWdyZWUgc2VxdWVuY2UNCiAgZGVnc2VxIDwtIHNhbXBsZSgNCiAgICBrX21pbjprX21heCwgDQogICAgc2l6ZSA9IG4sIA0KICAgIHJlcGxhY2UgPSBUUlVFLCANCiAgICBwcm9iID0gKDEgLyAoa19taW46a19tYXgpKV5hbHBoYSkgDQogICMgY29ycmVjdCB0aGUgZGVncmVlIHNlcXVlbmNlIGlmIGl0cyBzdW0gaXMgb2RkIChuZWNlc3NhcnkgZm9yIHRoZSBjb25maWd1cmF0aW9uIG1vZGVsKQ0KICBpZiggc3VtKGRlZ3NlcSkgJSUgMiAhPSAwKSB7DQogICAgZGVnc2VxWzFdIDwtIGRlZ3NlcVsxXSArIDENCiAgfQ0KICByZXR1cm4oZGVnc2VxKQ0KfQ0KDQpkZWdzZXEgPC0gZmRlZ3NlcShuPTk2LCBhbHBoYT0zLjEsIGtfbWluPTMpDQpuZXR3b3JrIDwtIHNhbXBsZV9kZWdzZXEoZGVnc2VxLCBtZXRob2QgPSAidmwiKQ0KaXNfc2ltcGxlKG5ldHdvcmspDQpzb3J0KGRlZ3JlZShuZXR3b3JrKSkNCg0KIyByYW5kb21seSBhc3NpZ24gcm9sZXMsIGJhc2VkIG9uIHByb3BvcnRpb24gdHJlbmRzZXR0ZXJzDQpWKG5ldHdvcmspJHJvbGUgPC0gc2FtcGxlKGMocmVwKCJ0cmVuZHNldHRlciIsIGZsb29yKG4qdCkpLCByZXAoImNvbmZvcm1pc3QiLCBuIC0gZmxvb3Iobip0KSkpKQ0KDQojdmlzdWFsaXplIGdyYXBoDQpmcGxvdF9ncmFwaChuZXR3b3JrKQ0KDQojYWxwaGEgMi4xIGNyZWF0ZXMgYXZlcmFnZSBkZWdyZWUgb2YgfiA4LjUNCiNhbHBoYSAyLjQgY3JlYXRlcyBhdmVyYWdlIGRlZ3JlZSBvZiB+IDYuOQ0KI2FscGhhIDMuMSBjcmVhdGVzIGF2ZXJhZ2UgZGVncmVlIG9mIH4gNC44DQojQFJGOiBsb29wIG92ZXIgaGlnaCBudW1iZXIgb2Ygc2ltdWxhdGVkIGNvbmZpZ3VyYXRpb24gbW9kZWxzIHRvIGdldCBhbiBhY2N1cmF0ZSBhdmVyYWdlIDxrPg0KDQojIHRvIHByb2R1Y2UgcmFuZG9tIG5ldHdvcmtzIHdpdGggc2FtZSBhdmVyYWdlIGRlZ3JlZTsgdHdlYWsgZWRnZSBwcm9iYWJpbGl0eQ0KIyA8az4gPSBwICogKG4tMSk7IHdpdGggcCBiZWluZyBlZGdlIHByb2JhYmlsaXR5DQojIHAgPSA8az4gLyAobi0xKQ0KIyA4LjUgLyA5NSB+IDAuMDkNCiMgNi45IC8gOTUgfiAwLjA3DQojIDQuOCAvIDk1IH4gMC4wNQ0KYGBgIA0KDQotLS0NCg0KDQojIHJld2lyaW5nIHRvIG1hbmlwdWxhdGUgZGVncmVlLWFzc29ydGF0aXZpdHkNCg0KYGBge3J9DQojcmV3aXJpbmcgZnVuY3Rpb24gdG8gYWRqdXN0IGFzc29ydGF0aXZpdHkgKHIpIHRvIGRlc2lyZWQgbGV2ZWw7IE5ld21hbjoNCmZyZXdpcmVfciA8LSBmdW5jdGlvbihuZXR3b3JrLCB0YXJnZXRfciwgbWF4X2l0ZXIgPSAxZTUsIHRvbCA9IDAuMDEsIHZlcmJvc2UgPSBUUlVFKSB7DQogIA0KICBjdXJyZW50X3IgPC0gYXNzb3J0YXRpdml0eV9kZWdyZWUobmV0d29yaykNCiAgaXRlcmF0aW9uIDwtIDENCiAgDQogIGlmICh2ZXJib3NlKSB7DQogICAgY2F0KCJUYXJnZXQgYXNzb3J0YXRpdml0eSBjb2VmZmljaWVudDoiLCB0YXJnZXRfciwgIlxuIikNCiAgICBjYXQoIlN0YXJ0aW5nIGFzc29ydGF0aXZpdHkgY29lZmZpY2llbnQ6IiwgY3VycmVudF9yLCAiXG4iKQ0KICAgIGNhdCgiVG9sZXJhbmNlOiIsIHRvbCwgIlxuIikNCiAgfQ0KICANCiAgd2hpbGUgKGFicyhjdXJyZW50X3IgLSB0YXJnZXRfcikgPiB0b2wgJiYgaXRlcmF0aW9uIDwgbWF4X2l0ZXIpIHsNCiAgICANCiAgICAjIGdldCBuZXR3b3JrIGVkZ2VzDQogICAgZWRnZXMgPC0gRShuZXR3b3JrKQ0KICAgICMgdG8gZWRnZWxpc3QNCiAgICBlZGdlX2xpc3QgPC0gZW5kcyhuZXR3b3JrLCBlZGdlcykNCiAgICANCiAgICAjIHJhbmRvbWx5IHNlbGVjdCB0d28gcGFpcnMgb2YgY29ubmVjdGVkIG5vZGVzDQogICAgaWR4MSA8LSBzYW1wbGUoMTpucm93KGVkZ2VfbGlzdCksIDEpDQogICAgaWR4MiA8LSBzYW1wbGUoMTpucm93KGVkZ2VfbGlzdCksIDEpDQogICAgDQogICAgIyBleHRyYWN0IG5vZGUgaW5kaWNlcw0KICAgIHUxIDwtIGVkZ2VfbGlzdFtpZHgxLCAxXSAjIG5vZGUgMSBvZiBmaXJzdCBlZGdlDQogICAgdjEgPC0gZWRnZV9saXN0W2lkeDEsIDJdICMgbm9kZSAyIG9mIGZpcnN0IGVkZ2UNCiAgICB1MiA8LSBlZGdlX2xpc3RbaWR4MiwgMV0gIyBldGMNCiAgICB2MiA8LSBlZGdlX2xpc3RbaWR4MiwgMl0gDQogICAgDQogICAgIyBjaGVjayBpZiB0aGUgdHdvIHBhaXJzIG9mIGNvbm5lY3RlZCBub2RlcyAodTEsIHYxOyB1MiwgdjIpIGFyZSBkaXNqb2ludA0KICAgIGlmIChsZW5ndGgodW5pcXVlKGModTEsIHYxLCB1MiwgdjIpKSkgPT0gNCkgew0KICAgICAgIyBjaGVjayBpZiB0aGVyZSBpcyBhbHJlYWR5IGFuIGVkZ2UgYWNyb3NzIHRoZSBub2RlLXBhaXJzDQogICAgICAjIGVuc3VyZSBubyBsb29wcyBhbmQgbm8gZHVwbGljYXRlIGVkZ2VzDQogICAgICBpZiAoIWFyZV9hZGphY2VudChuZXR3b3JrLCB1MSwgdTIpICYmICFhcmVfYWRqYWNlbnQobmV0d29yaywgdjEsIHYyKSAmJiB1MSAhPSB2MiAmJiB1MiAhPSB2MSkgew0KICAgICAgICANCiAgICAgICAgIyBwZXJmb3JtIHRoZSBlZGdlIHN3YXAgKHUxLHYxKSA8LT4gKHUyLHYyKSBiZWNvbWVzICh1MSx2MikgPC0+ICh1Mix2MSkNCiAgICAgICAgbmV3X25ldHdvcmsgPC0gbmV0d29yayAjIENvcHkgbmV0d29yaw0KICAgICAgICANCiAgICAgICAgIyBjaGVjayBpZiB0aGUgbmV3IGVkZ2VzIGFscmVhZHkgZXhpc3QgdG8gYXZvaWQgZHVwbGljYXRlcw0KICAgICAgICBpZiAoIWFyZV9hZGphY2VudChuZXdfbmV0d29yaywgdTEsIHYyKSAmJiAhYXJlX2FkamFjZW50KG5ld19uZXR3b3JrLCB1MiwgdjEpKSB7DQogICAgICAgICAgIyBhZGQgZWRnZXMNCiAgICAgICAgICBuZXdfbmV0d29yayA8LSBhZGRfZWRnZXMobmV3X25ldHdvcmssIGModTEsIHYyLCB1MiwgdjEpKQ0KICAgICAgICAgICMgcmVtb3ZlIGVkZ2VzDQogICAgICAgICAgbmV3X25ldHdvcmsgPC0gZGVsZXRlX2VkZ2VzKG5ld19uZXR3b3JrLCBnZXQuZWRnZS5pZHMobmV3X25ldHdvcmssIGModTEsIHYxLCB1MiwgdjIpKSkNCiAgICAgICAgICANCiAgICAgICAgICAjIG5ldyBhc3NvcnRhdGl2aXR5DQogICAgICAgICAgbmV3X3IgPC0gYXNzb3J0YXRpdml0eV9kZWdyZWUobmV3X25ldHdvcmspDQogICAgICAgICAgDQogICAgICAgICAgIyBhY2NlcHQgdGllIHN3YXAgaWYgaXQgYnJpbmdzIHVzIGNsb3NlciB0byB0aGUgdGFyZ2V0IGFzc29ydGF0aXZpdHkNCiAgICAgICAgICBpZiAoYWJzKG5ld19yIC0gdGFyZ2V0X3IpIDwgYWJzKGN1cnJlbnRfciAtIHRhcmdldF9yKSkgew0KICAgICAgICAgICAgY3VycmVudF9yIDwtIG5ld19yDQogICAgICAgICAgICBuZXR3b3JrIDwtIG5ld19uZXR3b3JrDQogICAgICAgICAgICBpZiAodmVyYm9zZSkgeyANCiAgICAgICAgICAgICAgY2F0KCJSZXdpcmluZyBhdCBpdGVyYXRpb24iLCBpdGVyYXRpb24sICJicm91Z2h0IGFzc29ydGF0aXZpdHkgY2xvc2VyIHRvIHRhcmdldCEgQ3VycmVudCBhc3NvcnRhdGl2aXR5IGNvZWZmaWNpZW50OiIsIG5ld19yLCAiXG4iKQ0KICAgICAgICAgICAgfQ0KICAgICAgICAgIH0NCiAgICAgICAgfQ0KICAgICAgfQ0KICAgIH0NCiAgICBpdGVyYXRpb24gPC0gaXRlcmF0aW9uICsgMQ0KICB9DQogIA0KICBpZiAodmVyYm9zZSkgew0KICAgIGNhdCgiRmluYWwgYXNzb3J0YXRpdml0eSBjb2VmZmljaWVudDoiLCBjdXJyZW50X3IsICJcbiIpDQogICAgaWYgKGFicyhjdXJyZW50X3IgLSB0YXJnZXRfcikgPD0gdG9sKSB7DQogICAgICBjYXQoIlRhcmdldCByZWFjaGVkIHdpdGhpbiB0b2xlcmFuY2UuXG4iKQ0KICAgIH0gZWxzZSB7DQogICAgICBjYXQoIlJlYWNoZWQgbWF4aW11bSBpdGVyYXRpb25zIHdpdGhvdXQgbWVldGluZyB0YXJnZXQuXG4iKQ0KICAgIH0NCiAgfQ0KICANCiAgcmV0dXJuKG5ldHdvcmspDQp9DQoNCiNpbml0aWFsaXplIHNjYWxlLWZyZWUgbmV0d29yaw0KZGVnc2VxIDwtIGZkZWdzZXEobj05NiwgYWxwaGE9Mi40LCBrX21pbj0zKQ0KbmV0d29yayA8LSBzYW1wbGVfZGVnc2VxKGRlZ3NlcSwgbWV0aG9kID0gInZsIikNClYobmV0d29yaykkcm9sZSA8LSBzYW1wbGUoYyhyZXAoInRyZW5kc2V0dGVyIiwgZmxvb3Iobip0KSksIHJlcCgiY29uZm9ybWlzdCIsIG4gLSBmbG9vcihuKnQpKSkpDQoNCiNnZXQgY3VycmVudCBhc3NvcnRhdGl2aXR5IGNvZWZmaWNpZW50DQphc3NvcnRhdGl2aXR5X2RlZ3JlZShuZXR3b3JrKQ0KDQojc2V0IHRhcmdldA0KdGFyZ2V0ID0gLTAuMQ0KbmV0d29yazIgPC0gZnJld2lyZV9yKG5ldHdvcmssIHRhcmdldF9yID0gdGFyZ2V0LCBtYXhfaXRlciA9IDFlMykNCmBgYA0KDQotLS0NCg0KIyBzd2FwcGluZyB0cmFpdHMgdG8gbWFuaXB1bGF0ZSBkZWdyZWUtdHJhaXQgY29ycmVsYXRpb24NCg0KYGBge3J9DQojIHdlIG1hbmlwdWxhdGUgZGVncmVlLXRyYWl0IGNvcnJlbGF0aW9uIChyaG8pIGJ5IHN3YXBwaW5nIGF0dHJpYnV0ZSB2YWx1ZXMgYW1vbmcgdGhlIG5vZGVzLiBUbyBpbmNyZWFzZSBccmhvX3treH0sIHdlIHJhbmRvbWx5IGNob29zZSBub2RlcyB2XzEgd2l0aCB4PTEgYW5kIHZfMCB3aXRoIHg9MCBhbmQgc3dhcCB0aGVpciBhdHRyaWJ1dGVzIGlmIHRoZSBkZWdyZWUgb2YgdGhlIGRlZ3JlZSBvZiB2XzAgaXMgZ3JlYXRlciB0aGFuIHRoYXQgb2Ygdl8xICh1bnRpbCB0aGUgZGVzaXJlZCBccmhvX3treH0gaXMgcmVhY2hlZDsgb3IgaXQgbm8gbG9uZ2VyIGNoYW5nZXMpLg0KZmRlZ3RyYWl0Y29yIDwtIGZ1bmN0aW9uKG5ldHdvcmspew0KICByb2xlcyA8LSBpZmVsc2UoVihuZXR3b3JrKSRyb2xlID09ICJ0cmVuZHNldHRlciIsIDEsIDApDQogIGRlZ3JlZXMgPC0gZGVncmVlKG5ldHdvcmspDQogIHJldHVybihsaXN0KGNvcj1jb3Iocm9sZXMsZGVncmVlcykscm9sZXM9cm9sZXMsZGVncmVlcz1kZWdyZWVzKSkNCn0NCg0KI3N3YXBwaW5nIGZ1bmN0aW9uIHRvIGFkanVzdCBkZWdyZWUtdHJhaXQgY29ycmVsYXRpb24NCmZzd2FwX3JobyA8LSBmdW5jdGlvbihuZXR3b3JrLCB0YXJnZXRfcmhvLCBtYXhfaXRlciA9IDFlMywgdG9sID0gMC4wNSwgdmVyYm9zZSA9IFRSVUUpIHsNCiAgDQogIGN1cnJlbnQgPC0gZmRlZ3RyYWl0Y29yKG5ldHdvcmspDQogIGl0ZXJhdGlvbiA8LSAxDQogIGJlc3RfbmV0d29yayA8LSBuZXR3b3JrDQogIGJlc3RfcmhvIDwtIGN1cnJlbnQkY29yDQogIA0KICBpZiAodmVyYm9zZSkgew0KICAgIGNhdCgiVGFyZ2V0IGRlZ3JlZS10cmFpdCBjb3JyZWxhdGlvbjoiLCB0YXJnZXRfcmhvLCAiXG4iKQ0KICAgIGNhdCgiU3RhcnRpbmcgZGVncmVlLXRyYWl0IGNvcnJlbGF0aW9uOiIsIGN1cnJlbnQkY29yLCAiXG4iKQ0KICAgIGNhdCgiVG9sZXJhbmNlOiIsIHRvbCwgIlxuXG4iKQ0KICB9DQogIA0KICB3aGlsZSAoaXRlcmF0aW9uIDw9IG1heF9pdGVyKSB7DQogICAgIyBjaGVjayBpZiB3ZSBhcmUgYWxyZWFkeSB3aXRoaW4gdG9sZXJhbmNlDQogICAgaWYgKGFicyhjdXJyZW50JGNvciAtIHRhcmdldF9yaG8pIDw9IHRvbCkgew0KICAgICAgaWYgKHZlcmJvc2UpIGNhdCgiVGFyZ2V0IHJlYWNoZWQgd2l0aGluIHRvbGVyYW5jZSBhdCBpdGVyYXRpb24iLCBpdGVyYXRpb24sICIuXG4iKQ0KICAgICAgYnJlYWsNCiAgICB9DQogICAgDQogICAgIyByYW5kb21seSBzZWxlY3Qgbm9kZXMgZm9yIHN3YXBwaW5nDQogICAgdjEgPC0gc2FtcGxlKHdoaWNoKGN1cnJlbnQkcm9sZXMgPT0gMSksIDEpDQogICAgdjAgPC0gc2FtcGxlKHdoaWNoKGN1cnJlbnQkcm9sZXMgPT0gMCksIDEpDQogICAgDQogICAgIyBnZXQgZGVncmVlcyBvZiBzZWxlY3RlZCBub2Rlcw0KICAgIGsxIDwtIGN1cnJlbnQkZGVncmVlc1t2MV0NCiAgICBrMCA8LSBjdXJyZW50JGRlZ3JlZXNbdjBdDQogICAgDQogICAgIyBzd2FwIHJvbGVzIGlmIGNvbmRpdGlvbiBrX3YwID4ga192MSBpcyBtZXQNCiAgICBpZiAoazAgPiBrMSkgew0KICAgICAgY3VycmVudCRyb2xlc1t2MV0gPC0gMA0KICAgICAgY3VycmVudCRyb2xlc1t2MF0gPC0gMQ0KICAgICAgDQogICAgICAjIHVwZGF0ZSBncmFwaCByb2xlcw0KICAgICAgVihuZXR3b3JrKSRyb2xlIDwtIGlmZWxzZShjdXJyZW50JHJvbGVzID09IDEsICJ0cmVuZHNldHRlciIsICJjb25mb3JtaXN0IikNCiAgICAgIA0KICAgICAgIyByZWNhbGN1bGF0ZSBkZWdyZWUtdHJhaXQgY29ycmVsYXRpb24NCiAgICAgIGN1cnJlbnQgPC0gZmRlZ3RyYWl0Y29yKG5ldHdvcmspDQogICAgICANCiAgICAgICMgY2hlY2sgaWYgdGhpcyBpcyB0aGUgY2xvc2VzdCBjb3JyZWxhdGlvbiB0byB0aGUgdGFyZ2V0IHNvIGZhcg0KICAgICAgaWYgKGFicyhjdXJyZW50JGNvciAtIHRhcmdldF9yaG8pIDwgYWJzKGJlc3RfcmhvIC0gdGFyZ2V0X3JobykpIHsNCiAgICAgICAgYmVzdF9uZXR3b3JrIDwtIG5ldHdvcmsNCiAgICAgICAgYmVzdF9yaG8gPC0gY3VycmVudCRjb3INCiAgICAgICAgaWYgKHZlcmJvc2UpIHsNCiAgICAgICAgICBjYXQoIlRyYWl0LXN3YXBwaW5nIGF0IGl0ZXJhdGlvbiIsIGl0ZXJhdGlvbiwgImJyb3VnaHQgY29ycmVsYXRpb24gY2xvc2VyIHRvIHRhcmdldCEgQ3VycmVudCBjb3JyZWxhdGlvbjoiLCBjdXJyZW50JGNvciwgIlxuIikNCiAgICAgICAgfQ0KICAgICAgfQ0KICAgIH0NCiAgICBpdGVyYXRpb24gPC0gaXRlcmF0aW9uICsgMQ0KICB9DQogIA0KICAjIGNoZWNrIGlmIHRoZSBmaW5hbCBjb3JyZWxhdGlvbiBpcyB3b3JzZSB0aGFuIHRoZSBiZXN0IGNvcnJlbGF0aW9uDQogIGZpbmFsX2NvcnJlbGF0aW9uIDwtIGN1cnJlbnQkY29yDQogIGlmIChhYnMoZmluYWxfY29ycmVsYXRpb24gLSB0YXJnZXRfcmhvKSA+IGFicyhiZXN0X3JobyAtIHRhcmdldF9yaG8pKSB7DQogICAgaWYgKHZlcmJvc2UpIHsNCiAgICAgIGNhdCgiXG5XYXJuaW5nOiBGaW5hbCBpdGVyYXRpb24gbWFkZSB0aGUgY29ycmVsYXRpb24gd29yc2UuIFJldmVydGluZyB0byBiZXN0IG9ic2VydmVkIGNvcnJlbGF0aW9uLlxuIikNCiAgICB9DQogIH0NCiAgDQogIGlmICh2ZXJib3NlKSB7DQogICAgY2F0KCJcbkZpbmFsIGRlZ3JlZS10cmFpdCBjb3JyZWxhdGlvbjoiLCBiZXN0X3JobywgIlxuIikNCiAgICBpZiAoYWJzKGJlc3RfcmhvIC0gdGFyZ2V0X3JobykgPD0gdG9sKSB7DQogICAgICBjYXQoIlRhcmdldCByZWFjaGVkIHdpdGhpbiB0b2xlcmFuY2UuXG4iKQ0KICAgIH0gZWxzZSBpZiAoaXRlcmF0aW9uID4gbWF4X2l0ZXIpIHsNCiAgICAgIGNhdCgiUmVhY2hlZCBtYXhpbXVtIGl0ZXJhdGlvbnMgd2l0aG91dCBtZWV0aW5nIHRhcmdldC5cbiIpDQogICAgfQ0KICB9DQogIHJldHVybihiZXN0X25ldHdvcmspDQp9DQoNCmZkZWd0cmFpdGNvcihuZXR3b3JrKQ0KdGFyZ2V0ID0gMC41DQpmZGVndHJhaXRjb3IoZnN3YXBfcmhvKG5ldHdvcmsgPSBuZXR3b3JrLCB0YXJnZXRfcmhvID0gdGFyZ2V0LCB0b2w9MC4wMSkpDQpgYGAgDQoNCmBgYHtyfQ0KZnBsb3RfZ3JhcGgobmV0d29yaywNCiAgICAgICAgICAgIG1haW49cGFzdGUwKCJjb25maWd1cmF0aW9uIG1vZGVsXG5kZWdyZWUgc2VxdWVuY2UgZ2VuZXJhdGVkIGZyb20gcChrKX5rXnstzrF9XG5OPTk2OyBwcm9wLiB0cmVuZHNldHRlciA9IDAuMTsgzrE9Mi40OyBrX21pbj0zXG5yX2trID0gIiwgDQogICAgICAgICAgICAgICAgICAgICAgICByb3VuZChhc3NvcnRhdGl2aXR5X2RlZ3JlZShuZXR3b3JrKSwzKSwgDQogICAgICAgICAgICAgICAgICAgICAgICAiOyBwX2t4ID0gIiwgcm91bmQoZmRlZ3RyYWl0Y29yKG5ldHdvcmspJGNvciwzKSkpDQoNCm5ldHdvcmsyIDwtIGZyZXdpcmVfcihuZXR3b3JrLCB0YXJnZXRfciA9IC0wLjEsIG1heF9pdGVyID0gMWU1LCB2ZXJib3NlPUZBTFNFKQ0KDQpmcGxvdF9ncmFwaChuZXR3b3JrMiwNCiAgICAgICAgICAgIG1haW49cGFzdGUwKCJjb25maWd1cmF0aW9uIG1vZGVsXG5kZWdyZWUgc2VxdWVuY2UgZ2VuZXJhdGVkIGZyb20gcChrKX5rXnstzrF9XG5OPTk2OyBwcm9wLiB0cmVuZHNldHRlciA9IDAuMTsgzrE9Mi40OyBrX21pbj0zXG5yX2trID0gIiwgDQogICAgICAgICAgICAgICAgICAgICAgICByb3VuZChhc3NvcnRhdGl2aXR5X2RlZ3JlZShuZXR3b3JrMiksMyksIA0KICAgICAgICAgICAgICAgICAgICAgICAgIjsgcF9reCA9ICIsIHJvdW5kKGZkZWd0cmFpdGNvcihuZXR3b3JrMikkY29yLDMpKSkNCg0KbmV0d29yazMgPC0gZnN3YXBfcmhvKG5ldHdvcmsyLCB0YXJnZXRfcmhvID0gMC41LCBtYXhfaXRlciA9IDFlNSwgdmVyYm9zZT1GQUxTRSkNCg0KZnBsb3RfZ3JhcGgobmV0d29yazMsDQogICAgICAgICAgICBtYWluPXBhc3RlMCgiY29uZmlndXJhdGlvbiBtb2RlbFxuZGVncmVlIHNlcXVlbmNlIGdlbmVyYXRlZCBmcm9tIHAoayl+a157Lc6xfVxuTj05NjsgcHJvcC4gdHJlbmRzZXR0ZXIgPSAwLjE7IM6xPTIuNDsga19taW49M1xucl9rayA9ICIsIA0KICAgICAgICAgICAgICAgICAgICAgICAgcm91bmQoYXNzb3J0YXRpdml0eV9kZWdyZWUobmV0d29yazMpLDMpLCANCiAgICAgICAgICAgICAgICAgICAgICAgICI7IHBfa3ggPSAiLCByb3VuZChmZGVndHJhaXRjb3IobmV0d29yazMpJGNvciwzKSkpDQpgYGANCg0KLS0tDQoNClNpbXVsYXRlIHNjYWxlLWZyZWUgbmV0d29ya3Mgd2l0aCBpbmRlcGVuZGVudGx5IHZhcmllZCBkZWdyZWUgZGlzdHJpYnV0aW9uLCBkZWdyZWUgYXNzb3J0YXRpdml0eSwgYW5kIGRlZ3JlZS10cmFpdCBjb3JyZWxhdGlvbjoNCg0KYGBge3IsIGV2YWw9RkFMU0V9DQojIHN0cnVjdHVyYWwgcGFyYW1ldGVycw0KbiA9IDk2DQprX21pbiA9IDMNCnBfdCA9IDAuMQ0KDQojIHRhcmdldCBwYXJhbWV0ZXJzDQphbHBoYXMgPC0gYygyLjEsIDIuNCwgMy4xKQ0KdGFyZ2V0X3JfdmFsdWVzIDwtIHNlcSgtMC40LCAwLjQsIGJ5ID0gMC4xKSANCnRhcmdldF9yaG9fdmFsdWVzIDwtIHNlcSgwLCAwLjYsIGJ5ID0gMC4xKQ0KDQojIGxpc3QgZm9yIHJlc3VsdHMNCnJlc3VsdHMgPC0gbGlzdCgpDQoNCmZvciAoYWxwaGEgaW4gYWxwaGFzKSB7ICNsb29wIG92ZXIgYWxwaGENCiAgDQogICMgZ2VuZXJhdGUgZGVncmVlIHNlcXVlbmNlIGZyb20gcG93ZXIgbGF3IHdpdGggYWxwaGENCiAgZGVnc2VxIDwtIGZkZWdzZXEobiA9IG4sIGFscGhhID0gYWxwaGEsIGtfbWluID0ga19taW4pDQogIA0KICAjIGNyZWF0ZSB1bmRpcmVjdGVkLCBjb25uZWN0ZWQsIHNpbXBsZSBncmFwaCB1c2luZyBWaWdlci1MYXRhcHkgYWxnb3JpdGhtDQogIG5ldHdvcmsgPC0gc2FtcGxlX2RlZ3NlcShkZWdzZXEsIG1ldGhvZCA9ICJ2bCIpDQogIA0KICAjIGFzc2lnbiByb2xlcyByYW5kb21seSwgYmFzZWQgb24gcHJvcG9ydGlvbiB0cmVuZHNldHRlciBwX3QNCiAgVihuZXR3b3JrKSRyb2xlIDwtIHNhbXBsZShjKHJlcCgidHJlbmRzZXR0ZXIiLCBmbG9vcihuKnQpKSwgcmVwKCJjb25mb3JtaXN0IiwgbiAtIGZsb29yKG4qdCkpKSkNCiAgDQogIGZvciAodGFyZ2V0X3IgaW4gdGFyZ2V0X3JfdmFsdWVzKSB7ICNsb29wIG92ZXIgdGFyZ2V0X3IgdmFsdWVzDQogICAgcmV3aXJlZF9uZXR3b3JrIDwtIGZyZXdpcmVfcihuZXR3b3JrLCB0YXJnZXRfciwgdmVyYm9zZT1GQUxTRSwgbWF4X2l0ZXIgPSAxZTQpDQogICAgYWN0dWFsX3IgPC0gYXNzb3J0YXRpdml0eV9kZWdyZWUocmV3aXJlZF9uZXR3b3JrKQ0KICAgIA0KICAgIGZvciAodGFyZ2V0X3JobyBpbiB0YXJnZXRfcmhvX3ZhbHVlcykgeyAjbG9vcCBvdmVyIHRhcmdldF9yaG8gdmFsdWVzDQogICAgICBmaW5hbF9uZXR3b3JrIDwtIGZzd2FwX3JobyhyZXdpcmVkX25ldHdvcmssIHRhcmdldF9yaG8sIHZlcmJvc2U9RkFMU0UsIG1heF9pdGVyPTFlNCkNCiAgICAgIGZpbmFsX3JobyA8LSBmZGVndHJhaXRjb3IoZmluYWxfbmV0d29yaykkY29yDQogICAgICANCiAgICAgICMgc3RvcmUgcmVzdWx0cw0KICAgICAgcmVzdWx0cyA8LSBhcHBlbmQocmVzdWx0cywgbGlzdChsaXN0KA0KICAgICAgICBhbHBoYSA9IGFscGhhLA0KICAgICAgICB0YXJnZXRfciA9IHRhcmdldF9yLA0KICAgICAgICBhY3R1YWxfciA9IGFjdHVhbF9yLA0KICAgICAgICB0YXJnZXRfcmhvID0gdGFyZ2V0X3JobywNCiAgICAgICAgYWN0dWFsX3JobyA9IGZpbmFsX3JobywNCiAgICAgICAgbmV0d29yayA9IGZpbmFsX25ldHdvcmsNCiAgICAgICkpKQ0KICAgIH0NCiAgfQ0KfQ0KDQojc2F2ZShyZXN1bHRzLCBmaWxlID0gIi4vZGF0YS9uZXR3b3Jrcy5yZGEiKQ0KYGBgDQoNCmBgYHtyLCBmaWcud2lkdGg9MTIsZmlnLmhlaWdodD02fQ0KI2xvYWQgaW4gdGhlIGdlbmVyYXRlZCBuZXR3b3Jrcw0KbG9hZCgiLi9kYXRhL25ldHdvcmtzLnJkYSIpDQoNCiMgZnVuY3Rpb24gdG8gY2FsY3VsYXRlIG1hZ25pdHVkZSBvZiBtYWpvcml0eSBpbGx1c2lvbjsgb3ZlciBkaWZmZXJlbnQgbmV0d29yayBzdHJ1Y3R1cmVzOw0KY2FsY3VsYXRlX21ham9yaXR5X2lsbHVzaW9uIDwtIGZ1bmN0aW9uKG5ldHdvcmssIHRocmVzaG9sZCA9IDAuNSkgew0KICByb2xlcyA8LSBWKG5ldHdvcmspJHJvbGUNCg0KICAjaW5pdGlhbGl6ZSBjb3VudGVyIGZvciBtYWpvcml0eSBpbGx1c2lvbg0KICBtaV9jb3VudCA8LSAwDQogIA0KICAjbG9vcCBvdmVyIGNvbmZvcm1pc3RzDQogIGZvciAodiBpbiBWKG5ldHdvcmspKSB7DQogICAgaWYgKHJvbGVzW3ZdID09ICJjb25mb3JtaXN0Iikgew0KICAgICAgbmVpZ2hib3JzIDwtIG5laWdoYm9ycyhuZXR3b3JrLCB2KQ0KICAgICAgdHJlbmRfbmVpZ2hib3JzIDwtIHN1bShyb2xlc1tuZWlnaGJvcnNdID09ICJ0cmVuZHNldHRlciIpDQogICAgICBwcm9wX3RyZW5kIDwtIHRyZW5kX25laWdoYm9ycyAvIGxlbmd0aChuZWlnaGJvcnMpDQogICAgICANCiAgICAgIGlmIChwcm9wX3RyZW5kID4gdGhyZXNob2xkKSB7DQogICAgICAgIG1pX2NvdW50IDwtIG1pX2NvdW50ICsgMQ0KICAgICAgfQ0KICAgIH0NCiAgfQ0KICAjIHJldHVybiBmcmFjdGlvbiBvZiBjb25mb3JtaXN0cyB3aG8gaGF2ZSBtYWpvcml0eSBpbGx1c2lvbg0KICByZXR1cm4obWlfY291bnQgLyBzdW0ocm9sZXMgPT0gImNvbmZvcm1pc3QiKSkNCn0NCg0KcGxvdGRhdGEgPC0gZG8uY2FsbChyYmluZCwgbGFwcGx5KHJlc3VsdHMsIGZ1bmN0aW9uKHJlcykgew0KICBhbHBoYSA8LSByZXMkYWxwaGENCiAgciA8LSByZXMkYWN0dWFsX3INCiAgcmhvIDwtIHJlcyRhY3R1YWxfcmhvDQogIG5ldHdvcmsgPC0gcmVzJG5ldHdvcmsNCiAgDQogICMgY2FsY3VsYXRlIHRoZSBtYWpvcml0eSBpbGx1c2lvbiAoaS5lLiwgdGhlIHByb3BvcnRpb24gb2YgY29uZm9ybWlzdHMgd2hvc2UgbmVpZ2hib3JzIG1lZXQgb3IgZXhjZWVkIHRocmVzaG9sZCDPhikNCiAgbWkgPC0gY2FsY3VsYXRlX21ham9yaXR5X2lsbHVzaW9uKG5ldHdvcmspDQogIA0KICAjIGNyZWF0ZSBhIGRhdGFmcmFtZQ0KICBkYXRhLmZyYW1lKGFscGhhID0gYWxwaGEsIA0KICAgICAgICAgICAgIHIgPSByLCANCiAgICAgICAgICAgICByaG8gPSByaG8sIA0KICAgICAgICAgICAgIG1pID0gbWkpDQp9KSkNCg0KI21ha2Ugc2VwYXJhdGUgZGF0YWZyYW1lcyBmb3IgZWFjaCBsZXZlbCBvZiBhbHBoYQ0KYWxwaGExIDwtIHBsb3RkYXRhW3Bsb3RkYXRhJGFscGhhPT11bmlxdWUocGxvdGRhdGEkYWxwaGEpWzFdLF0NCmFscGhhMiA8LSBwbG90ZGF0YVtwbG90ZGF0YSRhbHBoYT09dW5pcXVlKHBsb3RkYXRhJGFscGhhKVsyXSxdDQphbHBoYTMgPC0gcGxvdGRhdGFbcGxvdGRhdGEkYWxwaGE9PXVuaXF1ZShwbG90ZGF0YSRhbHBoYSlbM10sXQ0KDQojY3JlYXRlIGJpbnMgZm9yIHIgKGRlZy1hc3NvcmF0aXZpdHkpDQpmY3JlYXRlX2JpbnMgPC0gZnVuY3Rpb24oZGF0YSwgdmFyaWFibGUgPSAiciIpIHsNCiAgcnZhbHMgPC0gZGF0YVtbdmFyaWFibGVdXQ0KICBxdWFudCA8LSBxdWFudGlsZShydmFscywgcHJvYnMgPSBzZXEoMCwgMSwgbGVuZ3RoLm91dCA9IDYpKSANCiAgIyBnZW5lcmF0ZSBsYWJlbHMgZHluYW1pY2FsbHkNCiAgbGFiZWxzIDwtIHNhcHBseSgxOihsZW5ndGgocXVhbnQpIC0gMSksIGZ1bmN0aW9uKGkpIHsNCiAgICBwYXN0ZTAocm91bmQocXVhbnRbaV0sIDIpLCAiIDwgciDiiaQgIiwgcm91bmQocXVhbnRbaSArIDFdLCAyKSkNCiAgfSkNCiAgIyBhZGQgY2F0ZWdvcmllcyB0byB0aGUgZGF0YXNldA0KICBkYXRhJHJfY2F0cyA8LSBjdXQocnZhbHMsIGJyZWFrcyA9IHF1YW50LCBpbmNsdWRlLmxvd2VzdCA9IFRSVUUsIGxhYmVscyA9IGxhYmVscykNCiAgcmV0dXJuKGRhdGEpDQp9DQoNCiMgYXBwbHkgYmlubmluZyAgdG8gZWFjaCBzdWJzZXQNCmFscGhhMSA8LSBmY3JlYXRlX2JpbnMoYWxwaGExKQ0KYWxwaGEyIDwtIGZjcmVhdGVfYmlucyhhbHBoYTIpDQphbHBoYTMgPC0gZmNyZWF0ZV9iaW5zKGFscGhhMykNCg0KI3Bsb3QNCnBsb3QxIDwtIGdncGxvdChhbHBoYTEsIGFlcyh4ID0gcmhvLCB5ID0gbWksIGNvbG9yID0gYXMuZmFjdG9yKHJfY2F0cykpKSArDQogIGdlb21fcG9pbnQoYWxwaGEgPSAwLjcsIHNpemUgPSAyKSArDQogIGdlb21fc21vb3RoKHNlID0gRkFMU0UsIG1ldGhvZCA9ICJsb2VzcyIpICsNCiAgc2NhbGVfeV9jb250aW51b3VzKGxpbWl0cyA9IGMoMCwgMC4zKSkgKw0KICBsYWJzKA0KICAgIHggPSBleHByZXNzaW9uKCJkZWdyZWUtdHJhaXQgY29ycmVsYXRpb24gKCIgfiByaG9ba3hdIH4gIikiKSwgDQogICAgeSA9ICJwcm9wLiBjb25mb3JtaXN0cyB3LyBwcm9wLiB0cmVuZHNldHRlciBuYmguID4gz4YiLCAgICAgIA0KICAgIGNvbG9yID0gZXhwcmVzc2lvbigiZGVncmVlIGFzc29ydGF0aXZpdHkgKCIgfiByW2trXSB+ICIpIikNCiAgKSArDQogIHRoZW1lKGxlZ2VuZC5wb3NpdGlvbiA9IGMoMC4zLCAwLjgpKQ0KDQpwbG90MiA8LSBnZ3Bsb3QoYWxwaGEyLCBhZXMoeCA9IHJobywgeSA9IG1pLCBjb2xvciA9IGFzLmZhY3RvcihyX2NhdHMpKSkgKw0KICBnZW9tX3BvaW50KGFscGhhID0gMC43LCBzaXplID0gMikgKw0KICBnZW9tX3Ntb290aChzZSA9IEZBTFNFLCBtZXRob2QgPSAibG9lc3MiKSArDQogIHNjYWxlX3lfY29udGludW91cyhsaW1pdHMgPSBjKDAsIDAuMykpICsNCiAgbGFicygNCiAgICB4ID0gZXhwcmVzc2lvbigiZGVncmVlLXRyYWl0IGNvcnJlbGF0aW9uICgiIH4gcmhvW2t4XSB+ICIpIiksIA0KICAgIHkgPSAicHJvcC4gY29uZm9ybWlzdHMgdy8gcHJvcC4gdHJlbmRzZXR0ZXIgbmJoLiA+IM+GIiwgICAgICANCiAgICBjb2xvciA9IGV4cHJlc3Npb24oImRlZ3JlZSBhc3NvcnRhdGl2aXR5ICgiIH4gcltra10gfiAiKSIpDQogICkgKw0KICB0aGVtZShsZWdlbmQucG9zaXRpb24gPSBjKDAuMywgMC44KSkNCg0KcGxvdDMgPC0gZ2dwbG90KGFscGhhMywgYWVzKHggPSByaG8sIHkgPSBtaSwgY29sb3IgPSBhcy5mYWN0b3Iocl9jYXRzKSkpICsNCiAgZ2VvbV9wb2ludChhbHBoYSA9IDAuNywgc2l6ZSA9IDIpICsNCiAgZ2VvbV9zbW9vdGgoc2UgPSBGQUxTRSwgbWV0aG9kID0gImxvZXNzIikgKw0KICBzY2FsZV95X2NvbnRpbnVvdXMobGltaXRzID0gYygwLCAwLjMpKSArDQogIGxhYnMoDQogICAgeCA9IGV4cHJlc3Npb24oImRlZ3JlZS10cmFpdCBjb3JyZWxhdGlvbiAoIiB+IHJob1treF0gfiAiKSIpLCANCiAgICB5ID0gInByb3AuIGNvbmZvcm1pc3RzIHcvIHByb3AuIHRyZW5kc2V0dGVyIG5iaC4gPiDPhiIsICAgICAgDQogICAgY29sb3IgPSBleHByZXNzaW9uKCJkZWdyZWUgYXNzb3J0YXRpdml0eSAoIiB+IHJba2tdIH4gIikiKQ0KICApICsNCiAgdGhlbWUobGVnZW5kLnBvc2l0aW9uID0gYygwLjMsIDAuOCkpDQoNCiNjb21iaW5lDQpnZ3B1YnI6OmdnYXJyYW5nZShwbG90MSxwbG90MixwbG90MyxuY29sPTMpICsNCiAgZ2d0aXRsZSgiTWFqb3JpdHkgaWxsdXNpb24gaW4gc2NhbGUtZnJlZSBuZXR3b3JrcyIpICsgdGhlbWUoDQogICAgcGxvdC50aXRsZSA9IGVsZW1lbnRfdGV4dChoanVzdCA9IDAuNSwgZmFjZSA9ICJib2xkIiwgc2l6ZSA9IDE2KQ0KICApDQpgYGAgDQoNCg0KICAgIA0KICAgIA0KDQo=</div>
+<style>
+.center {
+  text-align: center;
+  color: red;
+}
+</style>
+<hr>
+<br>
+<p id="yearPlaceholder" class="center">Copyright &copy; <span id="currentYear"></span> Rob Franken </p>
+
+<script>
+  // JavaScript code to get and display the current year
+  var currentYear = new Date().getFullYear();
+  document.getElementById("currentYear").innerHTML = currentYear;
+</script>
+
+</body>
+</html>
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+<script>
+$(document).ready(function () {
+  window.initializeSourceEmbed("abm.Rmd");
+  window.initializeCodeFolding("show" === "show");
+});
+</script>
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3,h4",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
