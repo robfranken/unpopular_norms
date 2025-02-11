@@ -86,7 +86,7 @@ fshowdf <- function(x, ...) {
 }
 
 fplot_graph <- function(graph, main=NULL, layout_algo=NULL, 
-                        col1 = "#FFD700", col2 = "#800080") {
+                        col1 = "#FFD700", col2 = "#800080", legend=TRUE) {
   plot(graph,
        main = main,
        layout = layout_algo,
@@ -94,35 +94,28 @@ fplot_graph <- function(graph, main=NULL, layout_algo=NULL,
        vertex.size = degree(graph) + 2, # node size based on degree
        vertex.color = ifelse(V(graph)$role == "trendsetter", col1, col2),
        edge.width = 0.5,
+       
        edge.color = "darkgrey")
   #add legend
-  legend("bottomleft",
+  if(legend==TRUE) {
+    legend("bottomleft",
          legend = c("Trendsetter", "Conformist"),
          pch = 21,
          col = c(col1,col2),
          pt.bg = c(col1,col2),
          pt.cex = 3,
          bty = "n")
+  }
 }
+
 ```
 
 <br>
 
 ## necessary packages
 
-- `tidyverse`
-- `plotly`
-- `igraph`
-- `viplot`
-- `ggplot2`
-- `ggpubr`
-- `plotly`
-- `parallel`
-- `foreach`
-- `doParallel`
-
 ```{r, packages}
-packages = c("tidyverse", "igraph", "vioplot", "ggplot2", "ggpubr", "plotly", "parallel", "foreach", "doParallel")
+packages = c("tidyverse", "igraph", "vioplot", "ggplot2", "ggpubr", "plotly", "parallel", "foreach", "doParallel", "ggh4x", "grid", "gridExtra", "patchwork", "ggplotify")
 invisible(fpackage.check(packages))
 rm(packages)
 ```
@@ -142,22 +135,37 @@ futility <- function(agent_id, choice, agents, network, params) {
   alters <- agents[as.numeric(neighbors), ]
   n <- nrow(alters)
 
-  # count number of neighbors who did (not) follow the trend
-  n1 <- sum(alters$choice == 1)
-  n0 <- sum(alters$choice == 0)
+  # proportion of neighbors who adopted (p) or resisted (1-p) the trend
+  p <- sum(alters$choice == 1) / n
+  q <- 1 - p  # proportion of trend-resistant neighbors
+  
+  # calculate diminishing returns function
+  diminishing_returns <- function(x, v, lambda) {
+    v * (1 - exp(-lambda * x)) / (1 - exp(-lambda))
+  }
   
   # calculate expected utility (depending on alters' choices in prior round)
   if(ego$role == "conformist") {
-    choice_payoff <- ifelse(choice == 0, params$s, 0)
-    coordination_payoff <- ifelse(choice == 0, # normalized by n
-                                  (params$w/n) * n0,
-                                  (params$z/n) * n1)
-  } else {
-    choice_payoff <- ifelse(choice == 1, params$e, 0)
+    if (choice == 0) { # resist the trend
+      choice_payoff <- params$s # fixed utility for resisting
+      coordination_payoff <- diminishing_returns(q, params$w, params$lambda2)
+    } else { #follow the trend
+      choice_payoff <- 0
+      coordination_payoff <- diminishing_returns(p, params$z, params$lambda1)
+    }
+  } else { # trendsetters only care about following
+    if (choice == 1) {
+      choice_payoff <- params$e
+    } else {
+      choice_payoff <- 0
+    }
     coordination_payoff <- 0
   }
+  
+  # return total utility and counts of neighbors
   return(list(utility = choice_payoff + coordination_payoff,
-              n1 = n1, n0 = n0))
+              n1 = sum(alters$choice == 1),  # count of trend-adopting neighbors
+              n0 = sum(alters$choice == 0))) # count of trend-resistant neighbors
 }
 ```
 
@@ -173,7 +181,7 @@ A function to generate a degree sequence based on a power-law / log-normal distr
 ```{r, configuration_model}
 fdegseq <- function(n, dist = "power-law", alpha, k_min = 1, k_max = n - 1, seed = NULL) {
   
-  if (!is.null(seed)) {
+  if (!is.null(seed)) { 
     set.seed(seed)
   }
   
@@ -196,9 +204,10 @@ fdegseq <- function(n, dist = "power-law", alpha, k_min = 1, k_max = n - 1, seed
   if (dist == "power-law") {
     # if the specified distribution type is power-law, return the degree sequence
     return(degseq)
+    
   } else if (dist == "log-normal") {
     # if the specified distribution type is log-normal, generate a degree sequence following this distribution;
-    # but with a same mean degree <k> as its 'scale-free' counterpart. 
+    # but with a same mean degree <k> as its 'scale-free' counterpart. the spread alpha = 1. 
     
     # calculate mean degree in sequence
     mean_deg <- mean(degseq)
@@ -216,13 +225,14 @@ fdegseq <- function(n, dist = "power-law", alpha, k_min = 1, k_max = n - 1, seed
     # since the mean may shift after rounding and bounding, re-scale again:
     scaling_fctr2 <- mean_deg / mean(bounded_degseq)
     degseq <- pmin(pmax(round(bounded_degseq * scaling_fctr2), k_min), k_max)
-    
+
     # correct the degree sequence if its sum is odd (necessary for the configuration model)
     if (sum(degseq) %% 2 != 0) {
       degseq[1] <- degseq[1] + 1
     }
     return(degseq)
-  } else {
+  } 
+  else {
     stop("Invalid distribution type. Please choose 'power-law' or 'log-normal'.")
   }
 }
@@ -285,17 +295,112 @@ plist <- list(
 )
 
 par(mfrow=c(1, length(plist)), mar=c(1,1,3,1))
+
 for (i in 1:length(plist)) {
-  network <- erdos.renyi.game(96, p=plist[[i]])
+  network <- erdos.renyi.game(96, p = plist[[i]])
   V(network)$role <- sample(c(rep("trendsetter", floor(n * p_t)), rep("conformist", n - floor(n * p_t))))
-  fplot_graph(network, main = paste("random network\n", "p =",  round(plist[[i]], 3)))  
+
+  fplot_graph(network, 
+              main = paste("Random Network\n", "p =", round(plist[[i]], 3)))
+  
+  #hist(degree(network), 
+   #    main = paste0("Degree distribution", " (<k> = ", #round(mean(degree(network)),2), ")")
+#       )
 }
+```
+
+<br>
+
+## stealing algorithm
+
+But ensure k_min is met by randomly "stealing" ties for nodes with k<k_min, from source nodes (k>k_min) to target nodes:
+
+```{r}
+frandkmin <- function(n, p, k_min = 3, max_iter = 1e3, verbose = TRUE, seed = NULL) {
+  
+   if (!is.null(seed)) {
+    set.seed(seed)  
+  }
+  
+  # ER network
+  network <- erdos.renyi.game(n, p)
+  
+  iter <- 0
+  while (iter < max_iter) {
+    deg <- degree(network)
+    
+    # look for nodes whose degree is less than k_min
+    nodes_below_kmin <- which(deg < k_min)
+    
+    if (length(nodes_below_kmin) == 0) {
+      if (verbose) print(paste("Iteration", iter + 1, ": All nodes have degree >= k_min. Stopping..."))
+      
+      break
+    }
+    
+    # process nodes that dont meet k_min
+    for (i in nodes_below_kmin) {
+      if (deg[i] >= k_min) next 
+      if (verbose) print(paste("Node", i, "has degree", deg[i], "< k_min. Stealing degree..."))
+      
+      # find a node j with degree > k_min
+      neighbors_i <- neighbors(network, i)  # get neighbors of node i
+      candidates_j <- setdiff(which(deg > k_min), nodes_below_kmin)  # nodes with degree > k_min and not already below k_min
+      
+      if (length(candidates_j) == 0) {
+        if (verbose) print(paste("No candidate j found for node", i, ". Skipping."))
+        next
+      }
+      
+      j <- sample(candidates_j, 1)  # sample one node j from candidates
+
+      if (verbose) print(paste("Node", j, "is a candidate for stealing degree."))
+
+      # find a neighbor m of node j to "steal" the edge from
+      neighbors_j <- neighbors(network, j)
+      m <- sample(neighbors_j, 1)  # Randomly select one of j's neighbors
+
+      if (deg[m] <= k_min) {
+        if (verbose) print(paste("Node", m, "has degree <= k_min. Skipping this neighbor."))
+        next
+      }
+      
+      if (verbose) print(paste("Node", j, "is connected to node", m, ". Stealing edge."))
+      
+      # check if the edge exists between j and m before attempting to remove it
+      edge_exists <- any(ends(network, E(network))[,1] == j & ends(network, E(network))[,2] == m |
+                         ends(network, E(network))[,1] == m & ends(network, E(network))[,2] == j)
+      
+      if (edge_exists) {
+        # remove the edge between j and m, and add an edge between i and m
+        network <- delete_edges(network, get.edge.ids(network, c(j, m)))  # use edge ID instead
+        network <- add_edges(network, c(i, m))    # ddd the edge between i and m
+
+        # update the degree vector
+        deg <- degree(network)
+        
+        if (verbose) print(paste("Node", i, "now has degree", deg[i]))
+      } else {
+        if (verbose) print(paste("No edge exists between node", j, "and node", m, "Skipping..."))
+      }
+    }
+    
+    # increment iteration counter
+    iter <- iter + 1
+    if (verbose) print(paste("Iteration", iter, "completed."))
+  }
+  
+  return(network)
+}
+
+network <- frandkmin(n=96, p=0.06, k_min=3, verbose=TRUE, seed=143)
+table(degree(network))
 ```
 
 ## small-world
 
 ```{r}
-network <- sample_smallworld(dim = 1, size = 96, nei = 3, p = 0.10)
+network <- sample_smallworld(dim = 1, size = 96, nei = 3, p = 0.7)
 V(network)$role <- sample(c(rep("trendsetter", floor(n*p_t)), rep("conformist", n - floor(n*p_t))))
 fplot_graph(network, main = "small-world network")
 ```
@@ -403,13 +508,21 @@ Apply the function:
 ```{r}
 #initialize scale-free network
 network <- sample_degseq(fdegseq(n = n, alpha = 2.7, k_min = 3, seed = 123), method = "vl")
-V(network)$role <- sample(c(rep("trendsetter", floor(n*p_t)), rep("conformist", n - floor(n*p_t))))
 
 #get current assortativity coefficient
 assortativity_degree(network)
 
 #set new targets
 frewire_r(network, target_r = -0.2, max_iter = 1e3)
+
+# also for random network with similar density
+dens <- mean(degree(network)) / (n-1)
+
+network <- frandkmin(n=n,p=dens,k_min=3, seed = 123)
+assortativity_degree(network)
+frewire_r(network, target_r = -0.2, max_iter = 1e3)
+
+V(network)$role <- sample(c(rep("trendsetter", floor(n*p_t)), rep("conformist", n - floor(n*p_t))))
 ```
 
 ---
@@ -417,7 +530,6 @@ frewire_r(network, target_r = -0.2, max_iter = 1e3)
 ## swapping algorithm
 
 Swapping algorithm to tune degree-trait correlation [@Lerman2016]:
-
 
 ```{r}
 # we manipulate degree-trait correlation (rho) by swapping attribute values among the nodes. To increase \rho_{kx}, we randomly choose nodes v_1 with x=1 and v_0 with x=0 and swap their attributes if the degree of the degree of v_0 is greater than that of v_1 (until the desired \rho_{kx} is reached; or it no longer changes).
@@ -611,6 +723,7 @@ results <- list()
 
 for (dist in distributions) {
   for (alpha in alphas) {
+
     # generate degree sequence from specified distribution and alpha
     degseq <- fdegseq(n = n, dist = dist, alpha = alpha, k_min = k_min, seed = 123)
     
@@ -666,10 +779,10 @@ lapply(sample(results, 5), function(x) {
 
 # "majority illusion"
 
-A function to calculate the magnitude of the "majority illusion", based on the network structure, and a given majority threshold (here, "weak influence", so *more* than half of neighbors need to adopt the trend in order for an ego to be persuaded to do the same):
+A function to calculate the magnitude of the "majority illusion", based on the network structure, and a given majority threshold (here, "strong influence", so half of neighbors need to adopt the trend in order for an ego to be persuaded to do the same):
 
 ```{r}
-calculate_majority_illusion <- function(network, threshold = 0.5) {
+calculate_majority_illusion <- function(network, threshold = 0.49) {
   roles <- V(network)$role
   actions <- V(network)$action
 
@@ -683,7 +796,7 @@ calculate_majority_illusion <- function(network, threshold = 0.5) {
       trend_neighbors <- sum(actions[neighbors] == 1)
       prop_trend <- trend_neighbors / length(neighbors)
       
-      if (prop_trend > threshold) { #under "strong influence" half of the neighborhood suffices; so set threshold at .49
+      if (prop_trend > threshold) { #under "weak influence", more than half of the neighborhood suffices; so set threshold at .5
         mi_count <- mi_count + 1
       }
     }
@@ -787,38 +900,61 @@ ggarrange(plot1,plot2,plot3,ncol=3) +
 Now for each parameter space row generate networks over N different seeds:
 
 ```{r, eval=FALSE}
+n = 96 # number of agents
+p_t_values <- c(0.05, 0.1, 0.2) # proportion "trendsetters"
+k_min = 3
+# target parameters
+alphas <- c(2.4, 2.7, 3)
+distributions <- c("power-law", "log-normal", "binomial")
+target_r_values <- list(seq(-0.4, -0.15, by = 0.05),
+                        seq(-0.35, -0.05, by = 0.05),
+                        seq(-0.3, 0.1, by = 0.05)
+                        )
+names(target_r_values) <- alphas
+target_rho_values <- seq(0, 0.6, by = 0.1)
+
 # set up parallel backend to increase efficiency
 ncores <- detectCores() - 1 
 cl <- makeCluster(ncores)
 registerDoParallel(cl)
 
 # number of seeds
-nIter <- 100
-distributions <- c("power-law", "log-normal")
+nIter <- 50
 
 # list to store results in
 rep_results <- list()
 
 # parallel processing using foreach
 rep_results <- foreach(alpha = alphas, .combine = 'c', .packages = c("igraph")) %:%
+  foreach(p_t = p_t_values, .combine = 'c', .packages = c("igraph")) %:%
   foreach(iter = 1:nIter, .combine = 'c', .packages = c("igraph")) %dopar% {
     
     # seed must vary with each iteration
     seed <- 123 + iter
     set.seed(seed)
-    
-    print(paste0("Running iteration ", iter, "/", nIter, " for alpha = ", alpha))
+  
+    print(paste0("Running iteration ", iter, "/", nIter, " for alpha = ", alpha, ", p_t = ", p_t))
     
     results <- list()  #temporary storage for the results
     
     # loop over distribution types:
     for (dist in distributions) {
-      # generate degree sequence with specified distribution type
-      degseq <- fdegseq(n = n, alpha = alpha, k_min = k_min, seed = 123 + iter, dist = dist)
       
-      # construct the network
-      network <- sample_degseq(degseq, method = "vl")
+      if (dist == "binomial") { # if random network; first get a target <k> from the corresponding power-law network
+        degseq <- fdegseq(n = n, alpha = alpha, k_min = k_min, seed = 123 + iter, dist = "power-law")
+        dens <- mean(degseq)/(n-1)
+        
+        # generate random network, meeting k_min, with 'fixed' density
+        network <- frandkmin(n=n, p=dens, k_min=3, verbose=FALSE, seed = 123 + iter)
+      } else {
+        
+        # generate degree sequence with specified distribution type
+        degseq <- fdegseq(n = n, alpha = alpha, k_min = k_min, seed = 123 + iter, dist = dist)
       
+        # construct the network
+        network <- sample_degseq(degseq, method = "vl")
+        
+      }
       # assign roles randomly
       V(network)$role <- sample(c(rep("trendsetter", floor(n * p_t)), rep("conformist", n - floor(n * p_t))))
       
@@ -832,14 +968,15 @@ rep_results <- foreach(alpha = alphas, .combine = 'c', .packages = c("igraph")) 
           final_network <- fswap_rho(rewired_network, target_rho, verbose = FALSE)
           final_rho <- fdegtraitcor(final_network)$cor
           
-          #update choices (choice==role): 
+          # update choices (choice == role): 
           V(final_network)$action <- ifelse(V(final_network)$role == "trendsetter", 1, 0)
           
-          #and calculate global majority illusion
+          # calculate global majority illusion
           mi <- calculate_majority_illusion(final_network)
           
           # append results
           results <- append(results, list(list(
+            p_t = p_t,
             dist = dist,
             alpha = alpha,
             target_r = target_r,
@@ -847,10 +984,10 @@ rep_results <- foreach(alpha = alphas, .combine = 'c', .packages = c("igraph")) 
             target_rho = target_rho,
             actual_rho = final_rho,
             mi = mi,
-            seed = seed, #store seed for reproducibility
+            seed = seed, # store seed for reproducibility
             network = final_network # store networks, so we can access these for the simulations.
-        )))
-      }
+          )))
+        }
       }
     }
     results
@@ -867,12 +1004,13 @@ fsave(rep_results, "networks.Rda")
 Visualize the extent of majority illusion depending on the network parameters across two degree distribution types, based on network simulations with different seeds. Visualizations include both observed MI and predicted values from OLS regression.
 
 ```{r}
-nets <- fload("./data/processed/20250107networks.Rda")
+nets <- fload("./data/processed/20250207networks.Rda")
 
 # to a dataframe:
 df <- do.call(rbind, lapply(nets, function(res) {
   data.frame(
     seed = res$seed,
+    p_t = res$p_t,
     dist = res$dist,
     alpha = res$alpha,
     target_r = res$target_r,
@@ -885,12 +1023,19 @@ df <- do.call(rbind, lapply(nets, function(res) {
 
 # create a 3D scatterplot of observed values of MI, disaggregated by
 # degree distribution type
+
+# only networks with p_t=10
+df2 <- df[df$p_t==.1, ]
+
+#@RF: but here we can tweak p_t (showing that in random networks MI also occurs when p_t is sufficiently large.)
+
+
 fig1 <- plot_ly()
 
-for (dist in unique(df$dist)) {
+for (dist in unique(df2$dist)) {
   fig1 <- fig1 %>%
     add_trace(
-      data = df[df$dist == dist, ],
+      data = df2[df2$dist == dist, ],
       x = ~alpha,
       y = ~actual_rho,
       z = ~actual_r,
@@ -922,16 +1067,16 @@ fig1 <- fig1 %>%
 
 
 #fit models => predicted values
-m1 <- lm(mi ~ actual_rho + actual_r + as.factor(alpha), data = df[df$dist == "power-law",])
-m2 <- lm(mi ~ actual_rho + actual_r + as.factor(alpha) + actual_rho:actual_r, data = df[df$dist == "power-law",])
-m3 <- lm(mi ~ actual_rho + actual_r + as.factor(alpha) + actual_rho:actual_r + actual_rho:as.factor(alpha) + actual_r:as.factor(alpha), data = df[df$dist == "power-law",])
+m1 <- lm(mi ~ actual_rho + actual_r + as.factor(alpha), data = df2[df2$dist == "power-law",])
+m2 <- lm(mi ~ actual_rho + actual_r + as.factor(alpha) + actual_rho:actual_r, data = df2[df2$dist == "power-law",])
+m3 <- lm(mi ~ actual_rho + actual_r + as.factor(alpha) + actual_rho:actual_r + actual_rho:as.factor(alpha) + actual_r:as.factor(alpha), data = df2[df2$dist == "power-law",])
 
 #anova(m1,m2,m3)
 #summary(m3)
 
 # create a sequence of values for rho, r, and alpha
-rho_vals <- seq(min(df[df$dist == "power-law",]$actual_rho), max(df[df$dist == "power-law",]$actual_rho), length.out = 50)
-r_vals <- seq(min(df[df$dist == "power-law",]$actual_r), max(df[df$dist == "power-law",]$actual_r), length.out = 50)
+rho_vals <- seq(min(df2[df2$dist == "power-law",]$actual_rho), max(df2[df2$dist == "power-law",]$actual_rho), length.out = 50)
+r_vals <- seq(min(df2[df2$dist == "power-law",]$actual_r), max(df2[df2$dist == "power-law",]$actual_r), length.out = 50)
 #alpha_vals <- seq(2.4, 3, by=0.1)  
 alpha_vals <- c(2.4,2.7,3)
 
@@ -1032,8 +1177,10 @@ fabm <- function(network = network, # the generated network
                  rounds = 10, # number of timesteps/rounds
                  choice_rule = "deterministic", # choice update rule
                  utility_fn = futility, # the utility function
-                 params = list(s=10, e=10, w=30, z=35), # utility parameters
+                 params = list(s=15, e=10, w=40, z=50, lambda1=4.3, lamda2=1.8), # utility parameters
                  mi_threshold = ifelse(params$z > 50, .49, .50), # under the "strong influence" condition (i.e., 50<z<90) half of neighbors adopting the trend is sufficient; under the "weak influence" condition (i.e., 30<z<50) *more* than half of neighbors adopting the trend is needed to be influenced.)
+                 histories = FALSE, # return decision history
+                 outcome = TRUE, # return outcomes
                  plot = FALSE ) { # return plot
   
   # make an agents dataframe
@@ -1047,6 +1194,10 @@ fabm <- function(network = network, # the generated network
   # initialize decision history
   decision_history <- tibble()
   
+  # also initialize an equilibrium flag
+  equilibrium_reached <- FALSE
+  equilibrium_t <- NA
+  
   # simulation loop
   for (t in 1:rounds) {
     if (t == 1) {
@@ -1058,8 +1209,8 @@ fabm <- function(network = network, # the generated network
       agents <- agents %>%
         rowwise() %>%
         mutate(
-          util_1 = utility_fn(id, 1, agents, network, list(s = params$s, e = params$e, w = params$w, z = params$z))$utility,
-          util_0 = utility_fn(id, 0, agents, network, list(s = params$s, e = params$e, w = params$w, z = params$z))$utility,
+          util_1 = utility_fn(id, 1, agents, network, list(s = params$s, e = params$e, w = params$w, z = params$z, lambda1 = params$lambda1, lambda2 = params$lambda2))$utility,
+          util_0 = utility_fn(id, 0, agents, network, list(s = params$s, e = params$e, w = params$w, z = params$z, lambda1 = params$lambda1, lambda2 = params$lambda2))$utility,
           # make decision based on expected utility
           choice = ifelse(
             choice_rule == "deterministic",
@@ -1073,6 +1224,18 @@ fabm <- function(network = network, # the generated network
                                     mutate(round = t))
   }
   
+  # check for equilibrium
+  # @RF: when introducing some stochasticity, this should be handled differently...
+  for(t in 2:rounds ) { 
+    prev_trend_followers <- mean(decision_history %>% filter(round == t - 1) %>% pull(choice) == 1)
+    curr_trend_followers <- mean(decision_history %>% filter(round == t) %>% pull(choice) == 1)
+        
+    if (!equilibrium_reached && abs(curr_trend_followers - prev_trend_followers) < .Machine$double.eps) {
+        equilibrium_reached <- TRUE
+        equilibrium_t <- t - 1  
+      }
+    }
+
   # based on decision_history:
   
   # 1. calculate global majority illusion over rounds
@@ -1093,8 +1256,8 @@ fabm <- function(network = network, # the generated network
     }
   }
   
-  # to long data frame: 
-  MI <- data.frame(
+  # to long format
+  MI <- tibble(
     round = 1:rounds,
     outcome = "majority_illusion",
     statistic = globMI
@@ -1109,18 +1272,19 @@ fabm <- function(network = network, # the generated network
       pivot_longer(cols = c("follow_trend"),
                    names_to = "outcome",
                    values_to = "statistic")
-  
+
   # bind
-  plotdata <- rbind(MI, UN)
+  plotdata <- bind_rows(MI, UN)
   
-  fig <- ggplot(plotdata, aes(x=round, y=statistic, color=factor(outcome))) +
+  if (plot) {
+    fig <- ggplot(plotdata, aes(x=round, y=statistic, color=factor(outcome))) +
       geom_line() +
       geom_point() +
       scale_y_continuous(labels = scales::percent_format(scale = 100), limits = c(0,1)) +
       scale_x_continuous(breaks = seq(1, max(plotdata$round), by = 1)) +
      labs(
        title = "Evolution of an unpopular norm",
-       subtitle = "`follow_trend` denotes the percentage of all agents that follow the trend.\n`majority_illusion` reflects the percentage of conformists whose neighbors meet or exceed the adoption threshold φ (i.e., 0.50),\nwith 'strong influence' referring to both meeting and exceeding the threshold, and 'weak influence' to exceeding it only.\nThe grey dashed line reflects the percentage of agents whose role is trendsetter.",
+       subtitle = "`follow_trend` denotes the percentage of all agents that follow the trend.\n`majority_illusion` reflects the percentage of conformists whose neighbors meet or exceed the adoption threshold φ (i.e., 0.50),\nwith 'strong influence' referring to both meeting and exceeding the threshold, and 'weak influence' to exceeding it only.\nThe grey dashed line reflects the percentage of agents whose role is trendsetter. The purple circle depicts the equilibrium point.",
        x = "round",
        y = "% agents",
        color = "outcome") +
@@ -1128,17 +1292,41 @@ fabm <- function(network = network, # the generated network
             #legend.position = "bottom",
             plot.subtitle = element_text(size = 8)) +
     geom_hline(yintercept = prop.table(table(agents$role))[2], linetype = "dashed", color = "darkgrey", size = 1)
-   
-   if(plot==TRUE) {
-     return(list(decision_history=decision_history,
-                 evo=plotdata,
-                 plot=fig))
-   } else {
-     return(list(decision_history=decision_history,
-                 evo=plotdata
-                 ))
-   }
+    
+    # add a circle around the equilibrium state 'follow_trend' statistic
+   if (!is.na(equilibrium_t)) {
+    fig <- fig + geom_point(
+      data = plotdata %>% filter(round == equilibrium_t & outcome == "follow_trend"),
+      aes(x = round, y = statistic), 
+      shape = 1, size = 4, color = "purple", stroke = 2
+    )
+  }
 }
+  
+  # return outputs
+  output <- list()
+  if (histories) { 
+    output$decision_history <- decision_history}
+  
+  if (outcome) { 
+    output$outcomes <- plotdata
+    output$equilibrium <- list(
+      reached = equilibrium_reached,
+      round = equilibrium_t,
+      prop_follow_trend = if (!is.na(equilibrium_t)) {
+        mean(decision_history %>% filter(round == equilibrium_t) %>% pull(choice) == 1)
+      } else { NA }
+    )
+    }
+  if (plot) { output$plot <- fig}
+  return(output)
+}
+
+#test <- fabm(network=nets[[49]]$network, rounds=10, params=list(s=10, e=10, w=30, z=40), histories = TRUE, plot = TRUE)
+#test$plot
+
+test <- fabm(network=nets[[sample(length(nets),1)]]$network, rounds=10, params=list(s=15, e=10, w=40, z=50, lambda1=4.3, lambda2=1.8), histories = TRUE, plot = TRUE)
+test$plot
 ```
 
 
@@ -1148,7 +1336,7 @@ fabm <- function(network = network, # the generated network
 
 Select random network from the networks with the top 10% highest majority illusion and simulate the evolution of the trend:
 
-```{r, fig.width=8}
+```{r, fig.width=8, eval=FALSE}
 set.seed(235435) # set seed for reproducibility 
 
 mis <- sapply(nets, function(x) x$mi) # extract MI values
@@ -1159,7 +1347,7 @@ top10 <- sorted[ceiling(0.9 * n):n] # top 10% MI
 ind <- sample(top10, 10) # select random elements
 
 # loop through each selection network;
-# inspect the evolution of MI and UP, for both weak and strong influence scenarios
+# inspect the evolution of MI and UP
 for (i in ind) {
   # access network and statistics
   network <- nets[[i]]$network
@@ -1173,17 +1361,13 @@ for (i in ind) {
   cat("Selected network", i, "\n")
   cat("Distribution:", dist, "\n")
   if(dist == "power-law"){cat("α:", alpha, "\n")}
+  cat("<k>:", mean(degree(network)), "\n")
   cat("r_{kk}:", actual_r, "\n")
   cat("ρ_{kx}:", actual_rho, "\n")
   cat("Starting MI:", mi, "\n")
-  
-  # weak influence
-  cat('Running simulation for "weak influence" scenario...\n')
-  print(fabm(network=network, rounds=20, params=list(s=10, e=10, w=30, z=40), plot=TRUE)$plot)
-  
-  # strong influence
-  cat('Running simulation for "strong influence" scenario...\n')
-  print(fabm(network=network, rounds=20, params=list(s=10, e=10, w=30, z=60), plot=TRUE)$plot)
+
+  cat('Running simulation ...\n')
+  print(fabm(network=network, rounds=20, params=list(s=15, e=10, w=40, z=50, lambda1=4.3, lambda2=1.8), plot = TRUE)$plot)
 }
 ``` 
 
@@ -1197,53 +1381,430 @@ rm(list = setdiff( ls(), c("df", "nets", lsf.str())) )
 gc()
 
 # @RF: let's start not with all networks... but select for each parameter space row a few seeds
-sub_nets <- Filter(function(x) x$seed %in% c(124), nets)
+#sub_nets <- Filter(function(x) x$seed %in% c(124:133), nets)
 
 # parameters
-rounds = 10
-z1 = 40 # weak influence
-z2 = 60 # strong influence
+rounds = 20
 
 # parallel backend
-ncores <- detectCores() - 1 
+ncores <- detectCores() - 2 
 cl <- makeCluster(ncores)
 registerDoParallel(cl)
 
-# export custom functions and required objects
-clusterExport(cl, c("fabm", "futility", "sub_nets", "rounds", "z1", "z2"))
+## @RF: in case you stop the simulation; just return from where you left:
+start <- 1
+start <- max(as.numeric(gsub(".*_(\\d+)\\.rds", "\\1", list.files("./sims")))) + 1
 
-# run loop in parallel
+if (!dir.exists("./sims")) dir.create("./sims")
+
+# export custom functions and required objects
+clusterExport(cl, c("fabm", "futility", "nets", "rounds", "start"))
+
 system.time({
-  results <- foreach(i = 1:length(sub_nets), .combine = 'rbind', .packages = c("igraph", "tidyverse")) %dopar% {
-  
-    # simulation for weak influence scenario
-    sim_weak <- fabm(network = sub_nets[[i]]$network, rounds = rounds, params = list(s = 10, e = 10, w = 30, z = z1))$evo
-    outcome_weak <- sim_weak$statistic[sim_weak$round == rounds & sim_weak$outcome == "follow_trend"]
+  foreach(i = start:length(nets), .packages = c("igraph", "tidyverse")) %dopar% {
+    # simulation
+    sim <- fabm(
+      network = nets[[i]]$network,
+      rounds = rounds,
+      params = list(s=15, e=10, w=40, z=50, lambda1=4.3, lambda2=1.8))$equilibrium
     
-    # simulation for strong influence scenario
-    sim_strong <- fabm(network = sub_nets[[i]]$network, rounds = rounds, params = list(s = 10, e = 10, w = 30, z = z2))$evo
-    outcome_strong <- sim_strong$statistic[sim_strong$round == rounds & sim_strong$outcome == "follow_trend"]
+    # data frame for this network
+    sim_results <- data.frame(
+      seed = i,
+      equilibrium = sim$reached,
+      equilibrium_t = sim$round,
+      prop_trend = sim$prop_follow_trend
+    )
     
-    gc()
+    # save intermediate results
+    saveRDS(sim_results, file = paste0("./sims/sim_network_", i, ".rds")) #
     
-    # return results as a row to be rbinded in a results matrix
-    return(c(outcome_weak, outcome_strong))
+     # periodic memory cleanup
+      if (i %% 200 == 0) {
+        gc()
+      }
+    
   }
 })
-
+  
 stopCluster(cl)
 closeAllConnections()
+``` 
 
+```{r, eval=FALSE}
+# list all .rds files in the folder
+file_paths <- list.files("./sims/", full.names = TRUE)
 
-#and add these outcomes to our dataframe:
-#df$outcome_weak <- outcome_weak
-#df$outcome_strong <- outcome_strong
+# extract the numeric part of the file names and order them numerically
+file_paths <- file_paths[order(as.numeric(gsub("\\D", "", basename(file_paths))))]
 
+# use lapply to read all .rds files and rbindlist to combine them
+system.time(all_data <- data.table::rbindlist(lapply(file_paths, readRDS))) #
 
+# make sure we only include networks for which we have a simulation
+# extract numeric part of file names
+file_numbers <- as.numeric(gsub("\\D", "", basename(file_paths)))
+
+sorted_indices <- order(file_numbers)
+file_paths <- file_paths[sorted_indices]
+file_numbers <- file_numbers[sorted_indices]
+
+subdf <- df[file_numbers,]
+
+sims <- cbind(subdf, all_data)
+
+#remove those with missing on outcome
+mis <- which(is.na(sims$prop_trend))
+sims <- sims[-mis, ]
+
+fsave(sims, "sim_dataframe.Rda")
+```
+
+```{r}
+data <- fload("./data/processed/20250211sim_dataframe.Rda")
+names(data)[10] <- "i"
+
+hist_obj <- hist(data$prop_trend[data$p_t==0.10], breaks = seq(0, 1, by = 0.05), plot = FALSE)
+colors <- ifelse(hist_obj$mids < 0.15, "skyblue",     
+                 ifelse(hist_obj$mids < 0.95, "salmon",  
+                        "palegreen"))
+
+par(mar = c(5, 4, 4, 6))
+plot(hist_obj, 
+     main = "Histogram of proportion trend followers at equilibrium",
+     sub = "(10% trendsetters)",
+     xlab = "Prop. trend followers", 
+     xlim = c(0, 1), 
+     col = colors,
+     border = "black", 
+     freq = TRUE,  
+     ylim = c(0, max(hist_obj$counts) * 1.1))
+
+# overlay the density plot
+par(new = TRUE)
+density_obj <- density(data$prop_trend[data$p_t==0.10])  # kernel density
+
+plot(density_obj, 
+     main = "", 
+     col = "black", 
+     lwd = 2, 
+     axes = FALSE, 
+     xlab = "", 
+     ylab = "", 
+     xlim = c(0, 1))
+
+axis(4, at = pretty(range(density_obj$y)))  
+mtext("Density", side = 4, line = 2.5)  
 ``` 
 
 
+```{r, fig.width=10, fig.height=5}
+data$dist <- fct_rev(data$dist)
 
+create_plot <- function(p_t_level) {
+  data_filtered <- data %>% filter(p_t == p_t_level)
+  
+  ggplot(data_filtered, aes(x = actual_rho, y = actual_r, color = prop_trend)) +
+    geom_point(size = 1.5, alpha = 0.7) +
+    facet_grid2(
+      rows = vars(dist),
+      cols = vars(alpha),
+      labeller = labeller(alpha = function(x) paste0("\u03B1=", x))
+    ) +
+    scale_color_gradientn(
+      colors = c("lightblue", "yellow", "red", "black"),
+      values = scales::rescale(c(0, 0.2, 0.5, 0.75, 0.9, 1)),
+      limits = c(0, 1),
+      name = "% agents\nfollowing trend"
+    ) +
+    labs(
+      x = expression(rho[kx]),
+      y = expression(r[kk]),
+      title = paste("proportion trendsetters =", p_t_level)
+    ) +
+    theme_minimal() +
+    theme(
+      strip.background = element_rect(fill = "grey90", color = "grey50")
+    )
+}
+
+# generate plots for each level of p_t
+plot1 <- create_plot(unique(data$p_t)[1])
+plot2 <- create_plot(unique(data$p_t)[2])
+plot3 <- create_plot(unique(data$p_t)[3])
+
+# combine
+combined_plot <- (plot1 + plot2 + plot3) +
+  plot_layout(guides = "collect") & theme(legend.position = "bottom")
+
+combined_plot
+
+```
+
+
+```{r}
+# a function to create heatmap for a specific level of p_t
+create_heatmap <- function(p_t_level) {
+  # filter data for the given level of p_t
+  data_filtered <- data %>% filter(p_t == p_t_level)
+  
+  # summarize the data
+  data_summary <- data_filtered %>%
+    group_by(target_rho, target_r, alpha, dist) %>%
+    summarize(
+      `P(neg. cascade)` = mean(prop_trend == 1, na.rm = TRUE),  # mean of prop_trend == 1
+      n = n(),  # count of observations in each group
+      se_prob = sqrt((`P(neg. cascade)` * (1 - `P(neg. cascade)` )) / n),  # standard error for the proportion
+      .groups = "drop"
+    )
+  
+  # find the highest value for each facet
+  max_values <- data_summary %>%
+    group_by(alpha, dist) %>%
+    filter(`P(neg. cascade)` == max(`P(neg. cascade)`)) %>%
+    distinct(alpha, dist, .keep_all = TRUE) %>%
+    ungroup()
+  
+  # create the heatmap
+  ggplot(data_summary, aes(x = target_rho, y = target_r, fill = `P(neg. cascade)`)) +
+    geom_tile(color = "white") +  #  with gridlines
+    scale_fill_gradientn(
+      colors = c("lightblue", "yellow", "red", "black"), 
+      name = "P(neg. cascade)",
+      limits = c(0, 1)  # ensure the fill scale ranges between 0 and 1
+    ) +
+    facet_grid2(
+      rows = vars(dist),
+      cols = vars(alpha),
+      scales = "free",
+      independent = TRUE,
+      labeller = labeller(alpha = function(x) paste0("\u03B1=", x)) 
+    ) +
+    # add a line connecting the text box to the corresponding tile (drawn first)
+    #geom_segment(data = max_values, 
+    #             aes(x = target_rho, y = target_r, 
+    #                 xend = target_rho - 0.3, yend = target_r),
+    #             color = "black", size = 0.5) +  # thin line connecting text and tile
+    # add a point at the center of the cell
+    #geom_point(data = max_values, 
+    #           aes(x = target_rho, y = target_r),
+    #           color = "black", size = 1) +  # point (dot) at the center of the cell
+    # add a label box with the highest value per panel (light fill color)
+    #geom_label(data = max_values, 
+    #           aes(label = paste0("P = ", round(`P(neg. cascade)`, 2))),
+    #           fill = "gray90", color = "black", size = 4, 
+    #           label.padding = unit(0.2, "lines"), label.size = 0.2, 
+    #           nudge_x = -0.3, nudge_y = 0) +  # light gray background
+    labs(
+      x = expression(rho[kx]), 
+      y = expression(r[kk]), 
+      title = paste("Proportion trendsetters =", p_t_level)  # add a title for each level of p_t
+    ) +
+    theme_minimal() +
+    theme(
+      strip.background = element_rect(fill = "grey90", color = "grey50"),
+      legend.position = "right"  # move legend to the bottom for consistent layout
+    )
+}
+
+# generate heatmaps for each level of p_t
+heatmap1 <- create_heatmap(unique(data$p_t)[1])
+heatmap2 <- create_heatmap(unique(data$p_t)[2])
+heatmap3 <- create_heatmap(unique(data$p_t)[3])
+
+# arrange the heatmaps next to each other with a shared legend
+combined_heatmap <- (heatmap1 + heatmap2 + heatmap3) +
+  plot_layout(guides = "collect") & theme(legend.position = "bottom")
+
+heatmap1
+heatmap2
+heatmap3
+
+#create_heatmap(unique(data$p_t)[2]) + labs(title=NULL) + theme(legend.position = "bottom")
+#ggsave("./figures/neg_cascade_10.png", height=5)
+
+#p5 <- create_heatmap(unique(data$p_t)[1])
+#p20 <- create_heatmap(unique(data$p_t)[3])
+
+#(p5 + p20) +
+#  plot_layout(guides = "collect") & theme(legend.position = #"bottom")
+
+#ggsave("./figures/neg_cascade_5_20.png", height=5, width=8)
+
+```
+
+
+```{r, fig.width=15}
+# let's find a candidate netwokr for our experiment:
+# power-law; alpha=2.7, p_t=10, r_kk=-.3, rho_kx=0.6
+
+# networks that satsify this:
+ind <- as.numeric(rownames(data[data$dist == "power-law" & data$alpha == 2.7 & data$p_t == 0.10 & data$target_r == -0.30 & data$target_rho == 0.6 & data$prop_trend == 1,]))
+
+for (i in sample(1:length(ind),5)) {
+  graph_plot <- ggplotify::as.grob(~fplot_graph(nets[[ind[i]]]$network))
+  
+  abm_result <- fabm(
+    network = nets[[ind[i]]]$network,
+    rounds = 20,
+    params = list(s = 15, e = 10, w = 40, z = 50, lambda1 = 4.3, lambda2 = 1.8),
+    plot = TRUE
+  )
+  abm_plot <- as.grob(~print(abm_result$plot))
+
+  grid.arrange(graph_plot, abm_plot, ncol = 2)
+}
+
+# also a control condition
+ind2 <- as.numeric(rownames(data[data$dist == "binomial" & data$alpha == 2.7 & data$p_t == 0.10 & data$target_rho == 0.1 & data$target_r == -0.05,]))
+
+#nets[[ind2[length(ind2)]]][c("target_r", "target_rho")]
+
+for (i in sample(1:length(ind2),5)) {
+  graph_plot <- ggplotify::as.grob(~fplot_graph(nets[[ind2[i]]]$network))
+  
+  abm_result <- fabm(
+    network = nets[[ind2[i]]]$network,
+    rounds = 20,
+    params = list(s = 15, e = 10, w = 40, z = 50, lambda1 = 4.3, lambda2 = 1.8),
+    plot = TRUE
+  )
+  abm_plot <- as.grob(~print(abm_result$plot))
+
+  grid.arrange(graph_plot, abm_plot, ncol = 2)
+}
+```
+
+```{r, fig.width=12, fig.height=8}
+par(mfrow = c(2, 2), mar = c(2, 2, 1, 1), oma = c(0, 0, 0, 0))
+
+#pick network
+network1 <- nets[[ind[1]]]$network
+
+# new plotting function: position nodes based on group membership
+# and base edge thickness (and color) on dyadic difference in degree
+fplot_graph2 <- function(graph, main=NULL, layout_algo=NULL, 
+                        col1 = "red", col2 = "green", legend=TRUE) {
+  
+ # function to determine edge color based on roles and degrees
+get_edge_color <- function(ego, alter, col1, col2) {
+  # get the roles and degrees of the nodes
+  role_ego <- V(graph)$role[ego]
+  role_alter <- V(graph)$role[alter]
+  degree_ego <- degree(graph, v = ego)
+  degree_alter <- degree(graph, v = alter)
+  
+  # different roles case
+  if (role_ego != role_alter) {
+    if (degree_ego > degree_alter) {
+      # color based on ego's role
+      if (role_ego == "trendsetter") {
+        return(col1)  # red if ego is trendsetter
+      } else {
+        return(col2)  # green if ego is conformist
+      }
+    } else if (degree_ego < degree_alter) {
+      # color based on alter's role
+      if (role_alter == "trendsetter") {
+        return(col1)  # red if alter is trendsetter
+      } else {
+        return(col2)  # green if alter is conformist
+      }
+    } else {
+      return("black")  # if degrees are similar, color black
+    }
+  } 
+  # same role case
+  else {
+    return("darkgrey")  # same role, color dark grey
+  }
+}  
+
+  # get the edge colors
+  edge_colors <- sapply(1:length(E(graph)), function(i) {
+    # get the two nodes (ego and alter) connected by this edge
+    edge_ends <- ends(graph, E(graph))[i, ]
+    ego <- edge_ends[1]
+    alter <- edge_ends[2]
+    
+    # call the function to determine the edge color
+    get_edge_color(ego, alter, col1, col2)
+  })
+  
+  # plot the graph
+  plot(graph,
+       main = main,
+       layout = layout_algo,
+       vertex.label = NA,
+       vertex.size = 8,
+       vertex.color = ifelse(V(graph)$role == "trendsetter", col1, col2),
+       edge.width = E(graph)$kdif * 0.05 + 0.2,
+       edge.color = edge_colors)
+  
+  # add legend
+  if (legend == TRUE) {
+    legend("bottomleft",
+           legend = c("Trendsetter", "Conformist"),
+           pch = 21,
+           col = c(col1, col2),
+           pt.bg = c(col1, col2),
+           pt.cex = 3,
+           bty = "n")
+  }
+}
+
+#i want to position the nodes according to their role
+#create a new network object
+network_segregated <- network1
+E(network_segregated)$weight = 1
+
+# add edges with high weight between all nodes in the same group 
+for (i in unique(V(network1)$role)) {
+  roleV = which(V(network1)$role == i)
+  network_segregated = add_edges(network_segregated, combn(roleV, 2), attr=list(weight=3))
+}
+
+# create layout based on network_segregated
+set.seed(189)
+layout = layout_with_fr(network_segregated)
+
+# get node degrees
+degrees <- degree(network1)
+
+# Compute 'kdif' (degree difference between connected nodes)
+E(network1)$kdif <- sapply(E(network1), function(edge) {
+  nodes <- ends(network1, edge)
+  abs(degrees[nodes[1]] - degrees[nodes[2]])  # Degree difference
+})
+
+
+# same for control condition
+network2 <- nets[[ind2[1]]]$network
+network_segregated <- network2
+E(network_segregated)$weight = 1
+
+# add edges with high weight between all nodes in the same group 
+for (i in unique(V(network2)$role)) {
+  roleV = which(V(network2)$role == i)
+  network_segregated = add_edges(network_segregated, combn(roleV, 2), attr=list(weight=1))
+}
+
+set.seed(289)
+layout2 = layout_with_fr(network_segregated)
+degrees <- degree(network2)
+
+E(network2)$kdif <- sapply(E(network2), function(edge) {
+  nodes <- ends(network2, edge)
+  abs(degrees[nodes[1]] - degrees[nodes[2]])  # Degree difference
+})
+
+fplot_graph2(network1, layout_algo = layout, legend = FALSE)
+mtext("(A)", side = 3, line = -1, at = -.5, cex=2)
+fplot_graph2(network2, layout_algo = layout2, legend = FALSE)
+mtext("(B)", side = 3, line = -1, at = -.5, cex=2)
+fplot_graph2(network1, layout_algo = layout_with_fr(network1), legend = FALSE)
+fplot_graph2(network2, layout_algo = layout_with_fr(network2), legend = FALSE)
+``` 
 
 ---
 
