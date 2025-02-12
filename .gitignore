@@ -52,3 +52,5 @@ po/*~
 /local/
 /archive/
 
+#simulations
+/sims/

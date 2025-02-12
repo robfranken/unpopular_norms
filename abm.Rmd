@@ -86,12 +86,12 @@ fshowdf <- function(x, ...) {
 }
 
 fplot_graph <- function(graph, main=NULL, layout_algo=NULL, 
-                        col1 = "#FFD700", col2 = "#800080", legend=TRUE) {
+                        col1 = "#800080", col2 =  "#FFD700", legend=TRUE) {
   plot(graph,
        main = main,
        layout = layout_algo,
        vertex.label = NA,
-       vertex.size = degree(graph) + 2, # node size based on degree
+       vertex.size = degree(graph)*.5 + 3, # node size based on degree
        vertex.color = ifelse(V(graph)$role == "trendsetter", col1, col2),
        edge.width = 0.5,
        
@@ -677,7 +677,7 @@ conformist_degrees <- degrees[V(network1)$role == "conformist"]
 
 vioplot(trendsetter_degrees, conformist_degrees, 
         names = c("Trendsetters", "Conformists"),
-        col = c("#FFD700", "#800080"),
+         col = c( "#800080", "#FFD700"),
         main = "degree distribution")
 
 degrees2 <- degree(network2)
@@ -686,7 +686,7 @@ conformist_degrees2 <- degrees2[V(network2)$role == "conformist"]
 
 vioplot(trendsetter_degrees2, conformist_degrees2, 
         names = c("Trendsetters", "Conformists"),
-        col = c("#FFD700", "#800080"),
+         col = c( "#800080", "#FFD700"),
         main = "degree distribution")
 
 degrees3 <- degree(network3)
@@ -694,7 +694,7 @@ trendsetter_degrees3 <- degrees3[V(network3)$role == "trendsetter"]
 conformist_degrees3 <- degrees3[V(network3)$role == "conformist"]
 vioplot(trendsetter_degrees3, conformist_degrees3, 
         names = c("Trendsetters", "Conformists"),
-        col = c("#FFD700", "#800080"),
+        col = c( "#800080", "#FFD700"),
         main = "degree distribution")
 ```
 
@@ -1461,7 +1461,7 @@ fsave(sims, "sim_dataframe.Rda")
 ```
 
 ```{r}
-data <- fload("./data/processed/20250211sim_dataframe.Rda")
+data <- fload("./data/processed/20250212sim_dataframe.Rda")
 names(data)[10] <- "i"
 
 hist_obj <- hist(data$prop_trend[data$p_t==0.10], breaks = seq(0, 1, by = 0.05), plot = FALSE)
@@ -1681,78 +1681,6 @@ par(mfrow = c(2, 2), mar = c(2, 2, 1, 1), oma = c(0, 0, 0, 0))
 #pick network
 network1 <- nets[[ind[1]]]$network
 
-# new plotting function: position nodes based on group membership
-# and base edge thickness (and color) on dyadic difference in degree
-fplot_graph2 <- function(graph, main=NULL, layout_algo=NULL, 
-                        col1 = "red", col2 = "green", legend=TRUE) {
-  
- # function to determine edge color based on roles and degrees
-get_edge_color <- function(ego, alter, col1, col2) {
-  # get the roles and degrees of the nodes
-  role_ego <- V(graph)$role[ego]
-  role_alter <- V(graph)$role[alter]
-  degree_ego <- degree(graph, v = ego)
-  degree_alter <- degree(graph, v = alter)
-  
-  # different roles case
-  if (role_ego != role_alter) {
-    if (degree_ego > degree_alter) {
-      # color based on ego's role
-      if (role_ego == "trendsetter") {
-        return(col1)  # red if ego is trendsetter
-      } else {
-        return(col2)  # green if ego is conformist
-      }
-    } else if (degree_ego < degree_alter) {
-      # color based on alter's role
-      if (role_alter == "trendsetter") {
-        return(col1)  # red if alter is trendsetter
-      } else {
-        return(col2)  # green if alter is conformist
-      }
-    } else {
-      return("black")  # if degrees are similar, color black
-    }
-  } 
-  # same role case
-  else {
-    return("darkgrey")  # same role, color dark grey
-  }
-}  
-
-  # get the edge colors
-  edge_colors <- sapply(1:length(E(graph)), function(i) {
-    # get the two nodes (ego and alter) connected by this edge
-    edge_ends <- ends(graph, E(graph))[i, ]
-    ego <- edge_ends[1]
-    alter <- edge_ends[2]
-    
-    # call the function to determine the edge color
-    get_edge_color(ego, alter, col1, col2)
-  })
-  
-  # plot the graph
-  plot(graph,
-       main = main,
-       layout = layout_algo,
-       vertex.label = NA,
-       vertex.size = 8,
-       vertex.color = ifelse(V(graph)$role == "trendsetter", col1, col2),
-       edge.width = E(graph)$kdif * 0.05 + 0.2,
-       edge.color = edge_colors)
-  
-  # add legend
-  if (legend == TRUE) {
-    legend("bottomleft",
-           legend = c("Trendsetter", "Conformist"),
-           pch = 21,
-           col = c(col1, col2),
-           pt.bg = c(col1, col2),
-           pt.cex = 3,
-           bty = "n")
-  }
-}
-
 #i want to position the nodes according to their role
 #create a new network object
 network_segregated <- network1
@@ -1766,17 +1694,7 @@ for (i in unique(V(network1)$role)) {
 
 # create layout based on network_segregated
 set.seed(189)
-layout = layout_with_fr(network_segregated)
-
-# get node degrees
-degrees <- degree(network1)
-
-# Compute 'kdif' (degree difference between connected nodes)
-E(network1)$kdif <- sapply(E(network1), function(edge) {
-  nodes <- ends(network1, edge)
-  abs(degrees[nodes[1]] - degrees[nodes[2]])  # Degree difference
-})
-
+layout1 = layout_with_fr(network_segregated)
 
 # same for control condition
 network2 <- nets[[ind2[1]]]$network
@@ -1791,19 +1709,13 @@ for (i in unique(V(network2)$role)) {
 
 set.seed(289)
 layout2 = layout_with_fr(network_segregated)
-degrees <- degree(network2)
 
-E(network2)$kdif <- sapply(E(network2), function(edge) {
-  nodes <- ends(network2, edge)
-  abs(degrees[nodes[1]] - degrees[nodes[2]])  # Degree difference
-})
-
-fplot_graph2(network1, layout_algo = layout, legend = FALSE)
+fplot_graph(network1, layout_algo = layout1, legend = FALSE, col1 = "purple", col2 = "orange")
 mtext("(A)", side = 3, line = -1, at = -.5, cex=2)
-fplot_graph2(network2, layout_algo = layout2, legend = FALSE)
+fplot_graph(network2, layout_algo = layout2, legend = FALSE, col1 = "purple", col2 = "orange")
 mtext("(B)", side = 3, line = -1, at = -.5, cex=2)
-fplot_graph2(network1, layout_algo = layout_with_fr(network1), legend = FALSE)
-fplot_graph2(network2, layout_algo = layout_with_fr(network2), legend = FALSE)
+fplot_graph(network1, layout_algo = layout_with_fr(network1), legend = FALSE, col1 = "purple", col2 = "orange")
+fplot_graph(network2, layout_algo = layout_with_fr(network2), legend = FALSE, col1 = "purple", col2 = "orange")
 ``` 
 
 ---
