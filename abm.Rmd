@@ -115,11 +115,10 @@ fplot_graph <- function(graph, main=NULL, layout_algo=NULL,
 ## necessary packages
 
 ```{r, packages}
-packages = c("tidyverse", "igraph", "vioplot", "ggplot2", "ggpubr", "plotly", "parallel", "foreach", "doParallel", "ggh4x", "grid", "gridExtra", "patchwork", "ggplotify")
+packages = c("tidyverse", "igraph", "vioplot", "ggplot2", "ggpubr", "plotly", "parallel", "foreach", "doParallel", "ggh4x", "grid", "gridExtra", "patchwork", "ggplotify", "ggraph", "gganimate", "RColorBrewer", "ggtext", "magick")
 invisible(fpackage.check(packages))
 rm(packages)
 ```
-
 
 ---
 
@@ -270,7 +269,6 @@ Produce random networks with the same average degree (&lt;k&gt;) as scale-free c
 - &lt;k&gt; = p * (n - 1)
 - p = &lt;k&gt; / (n - 1)
 
-
 ```{r}
 # loop over a higher number of simulated configuration model to get an accurate estimate of average degree <k> in scale-free networks
 nIter <- 1e3
@@ -420,7 +418,6 @@ plot(degree_distribution(ln),pch=20,xlab="k",ylab="P(k)",las=1,main="Log-normal 
 ```
 
 ---
-
 
 ## rewiring algorithm
 
@@ -1028,8 +1025,6 @@ df <- do.call(rbind, lapply(nets, function(res) {
 df2 <- df[df$p_t==.1, ]
 
 #@RF: but here we can tweak p_t (showing that in random networks MI also occurs when p_t is sufficiently large.)
-
-
 fig1 <- plot_ly()
 
 for (dist in unique(df2$dist)) {
@@ -1327,6 +1322,7 @@ fabm <- function(network = network, # the generated network
 
 test <- fabm(network=nets[[sample(length(nets),1)]]$network, rounds=10, params=list(s=15, e=10, w=40, z=50, lambda1=4.3, lambda2=1.8), histories = TRUE, plot = TRUE)
 test$plot
+
 ```
 
 
@@ -1387,7 +1383,7 @@ gc()
 rounds = 20
 
 # parallel backend
-ncores <- detectCores() - 2 
+ncores <- detectCores() - 1
 cl <- makeCluster(ncores)
 registerDoParallel(cl)
 
@@ -1426,7 +1422,7 @@ system.time({
     
   }
 })
-  
+
 stopCluster(cl)
 closeAllConnections()
 ``` 
@@ -1435,23 +1431,64 @@ closeAllConnections()
 # list all .rds files in the folder
 file_paths <- list.files("./sims/", full.names = TRUE)
 
-# extract the numeric part of the file names and order them numerically
+# extract the numeric part of the file names and order them according to this
 file_paths <- file_paths[order(as.numeric(gsub("\\D", "", basename(file_paths))))]
 
+#length(file_paths) == length(nets) # not for all starting networks a simulation was performed...
+
+# extract simulation number (corresponding to starting network id)
+number <- as.numeric(gsub(".*_(\\d+)\\.rds", "\\1", file_paths))
+
+# find the networks for which we don't have a simulation df;
+missing_number <- setdiff(c(1:length(nets)), number)
+
+# and simulate these...
+for (i in missing_number) {
+  sim <- fabm(
+    network = nets[[i]]$network,
+    rounds = rounds,
+    params = list(s=15, e=10, w=40, z=50, lambda1=4.3, lambda2=1.8))$equilibrium
+  
+   sim_results <- data.frame(
+      seed = i,
+      equilibrium = sim$reached,
+      equilibrium_t = sim$round,
+      prop_trend = sim$prop_follow_trend
+    )
+   
+    saveRDS(sim_results, file = paste0("./sims/sim_network_", i, ".rds")) 
+}
+
+file_paths <- list.files("./sims/", full.names = TRUE)
+file_paths <- file_paths[order(as.numeric(gsub("\\D", "", basename(file_paths))))]
+#length(file_paths) == length(nets) # Check
+
 # use lapply to read all .rds files and rbindlist to combine them
-system.time(all_data <- data.table::rbindlist(lapply(file_paths, readRDS))) #
+system.time(all_data <- rbindlist(lapply(file_paths, function(file) {
+  num_part <- as.numeric(gsub("\\D", "", file)) 
+  data <- tryCatch(readRDS(file), error = function(e) NULL)
+  if (!is.null(data)) {
+    data <- data.table(data)
+    data[, network := num_part]  #also add the 'network number'
+  }
+  return(data)
+}), fill = TRUE))
+
+# subset all networks in our df for which also have a simulation
+df2 <- df[all_data$network,]
+sims <- cbind(df2, all_data)
 
 # make sure we only include networks for which we have a simulation
 # extract numeric part of file names
-file_numbers <- as.numeric(gsub("\\D", "", basename(file_paths)))
+#file_numbers <- as.numeric(gsub("\\D", "", basename(file_paths)))
 
-sorted_indices <- order(file_numbers)
-file_paths <- file_paths[sorted_indices]
-file_numbers <- file_numbers[sorted_indices]
+#sorted_indices <- order(file_numbers)
+#file_paths <- file_paths[sorted_indices]
+#file_numbers <- file_numbers[sorted_indices]
 
-subdf <- df[file_numbers,]
+#subdf <- df[file_numbers,]
 
-sims <- cbind(subdf, all_data)
+#sims <- cbind(subdf, all_data)
 
 #remove those with missing on outcome
 mis <- which(is.na(sims$prop_trend))
@@ -1461,7 +1498,7 @@ fsave(sims, "sim_dataframe.Rda")
 ```
 
 ```{r}
-data <- fload("./data/processed/20250212sim_dataframe.Rda")
+data <- fload("./data/processed/20250217sim_dataframe.Rda")
 names(data)[10] <- "i"
 
 hist_obj <- hist(data$prop_trend[data$p_t==0.10], breaks = seq(0, 1, by = 0.05), plot = FALSE)
@@ -1515,12 +1552,12 @@ create_plot <- function(p_t_level) {
       colors = c("lightblue", "yellow", "red", "black"),
       values = scales::rescale(c(0, 0.2, 0.5, 0.75, 0.9, 1)),
       limits = c(0, 1),
-      name = "% agents\nfollowing trend"
+      name = "% agents\nfollowing"~italic(B)~""
     ) +
     labs(
       x = expression(rho[kx]),
       y = expression(r[kk]),
-      title = paste("proportion trendsetters =", p_t_level)
+      title = paste("proportion minority =", p_t_level)
     ) +
     theme_minimal() +
     theme(
@@ -1538,7 +1575,6 @@ combined_plot <- (plot1 + plot2 + plot3) +
   plot_layout(guides = "collect") & theme(legend.position = "bottom")
 
 combined_plot
-
 ```
 
 
@@ -1620,103 +1656,170 @@ heatmap1
 heatmap2
 heatmap3
 
-#create_heatmap(unique(data$p_t)[2]) + labs(title=NULL) + theme(legend.position = "bottom")
-#ggsave("./figures/neg_cascade_10.png", height=5)
+#create_heatmap(unique(data$p_t)[2]) + labs(title=NULL) + theme(legend.position = "right")
+#ggsave("./figures/neg_cascade_10.png", height=4.5, width = 6.5)
 
-#p5 <- create_heatmap(unique(data$p_t)[1])
-#p20 <- create_heatmap(unique(data$p_t)[3])
-
-#(p5 + p20) +
-#  plot_layout(guides = "collect") & theme(legend.position = #"bottom")
-
-#ggsave("./figures/neg_cascade_5_20.png", height=5, width=8)
-
+#(heatmap1 + heatmap3) +
+#  plot_layout(guides = "collect") & theme(legend.position = "bottom")
+#ggsave("./figures/neg_cascade_5_20.png", height=4.5, width=7.5)
 ```
 
 
-```{r, fig.width=15}
+```{r, fig.width=15, fig.height=6}
 # let's find a candidate netwokr for our experiment:
 # power-law; alpha=2.7, p_t=10, r_kk=-.3, rho_kx=0.6
 
 # networks that satsify this:
 ind <- as.numeric(rownames(data[data$dist == "power-law" & data$alpha == 2.7 & data$p_t == 0.10 & data$target_r == -0.30 & data$target_rho == 0.6 & data$prop_trend == 1,]))
 
-for (i in sample(1:length(ind),5)) {
-  graph_plot <- ggplotify::as.grob(~fplot_graph(nets[[ind[i]]]$network))
+# let's get networks with max-degree <35
+ind2 <- ind[which(sapply(nets[ind], function(net) max(degree(net$network)) < 35))]
+
+for (i in unique(ind2)) { 
+  graph_plot <- ggplotify::as.grob(~fplot_graph(nets[[i]]$network))
   
   abm_result <- fabm(
-    network = nets[[ind[i]]]$network,
+    network = nets[[i]]$network,
     rounds = 20,
     params = list(s = 15, e = 10, w = 40, z = 50, lambda1 = 4.3, lambda2 = 1.8),
     plot = TRUE
   )
   abm_plot <- as.grob(~print(abm_result$plot))
-
-  grid.arrange(graph_plot, abm_plot, ncol = 2)
-}
-
-# also a control condition
-ind2 <- as.numeric(rownames(data[data$dist == "binomial" & data$alpha == 2.7 & data$p_t == 0.10 & data$target_rho == 0.1 & data$target_r == -0.05,]))
-
-#nets[[ind2[length(ind2)]]][c("target_r", "target_rho")]
-
-for (i in sample(1:length(ind2),5)) {
-  graph_plot <- ggplotify::as.grob(~fplot_graph(nets[[ind2[i]]]$network))
   
-  abm_result <- fabm(
-    network = nets[[ind2[i]]]$network,
-    rounds = 20,
-    params = list(s = 15, e = 10, w = 40, z = 50, lambda1 = 4.3, lambda2 = 1.8),
-    plot = TRUE
-  )
-  abm_plot <- as.grob(~print(abm_result$plot))
+  title_grob <- textGrob(paste("Network Index:", i), gp = gpar(fontsize = 12, fontface = "bold"))
 
-  grid.arrange(graph_plot, abm_plot, ncol = 2)
+  grid.arrange(
+    arrangeGrob(title_grob, graph_plot, ncol = 1, heights = c(0.1, 1)), 
+    abm_plot,  
+    ncol = 2, widths = c(1, 1)  )
 }
 ```
 
-```{r, fig.width=12, fig.height=8}
-par(mfrow = c(2, 2), mar = c(2, 2, 1, 1), oma = c(0, 0, 0, 0))
+```{r}
+# a function to generate a gif that visualizes the spread of the norm
+fnetworkgif <- function(network, decision_history, rounds, output_dir = "./figures") {
 
-#pick network
-network1 <- nets[[ind[1]]]$network
+  # colors for choices
+  choice_color <- c("0" = brewer.pal(3, "Set3")[1],  
+                   "1" = brewer.pal(3, "Set3")[2]) 
+  
+  # function to get the choice data for a specific round
+  fround_data <- function(round_number, decision_history) {
+    round_data <- decision_history %>%
+      filter(round == round_number) %>%
+      select(id, role, choice, round)
+    return(round_data)
+  }
 
-#i want to position the nodes according to their role
-#create a new network object
-network_segregated <- network1
-E(network_segregated)$weight = 1
+  # function to update the network and set border color based on initial trendsetters
+  fupdate_choices <- function(network, decision_history, round_number) {
+    # get the decisions for the specific round
+    round_data <- fround_data(round_number, decision_history)
+    
+    # set the node attribute based on actors' decisions
+    V(network)$choice <- as.character(round_data$choice)
+    
+    # border properties to distinguish trendsetters
+    V(network)$border_color <- ifelse(V(network)$role == "trendsetter", "black", "grey70")
+    V(network)$border_size <- ifelse(V(network)$role == "trendsetter", 1, 0.5)
+    return(network)
+  }
+  
+  # function to generate a list of updated networks
+  fupdate_nets <- function(network, decision_history, rounds) {
+    snapshots <- list()
+    
+    for (round_number in 1:rounds) {
+      updated_network <- fupdate_choices(network, decision_history, round_number)  
+      snapshots[[round_number]] <- updated_network
+    }
+    return(snapshots)
+  }
+  
+  # generate updated networks for all rounds
+  evo <- fupdate_nets(network = network, decision_history = decision_history, rounds = rounds)
+  
+  # create a layout for each network
+  xy <- layout_nicely(evo[[1]])
 
-# add edges with high weight between all nodes in the same group 
-for (i in unique(V(network1)$role)) {
-  roleV = which(V(network1)$role == i)
-  network_segregated = add_edges(network_segregated, combn(roleV, 2), attr=list(weight=3))
+  # create a (static) plot list
+  pList <- vector("list", length(evo))
+  
+  for (i in 1:length(evo)) {
+    # calculate the percentage of b=1
+    choice1_percentage <- sum(V(evo[[i]])$choice == "1") / length(V(evo[[i]])) * 100
+    
+    # update title to include percentage
+    round_title <- paste("Round", i, " - % agents following <i>B</i> :", round(choice1_percentage, 2), "%")
+    
+    pList[[i]] <- ggraph(evo[[i]], layout = "manual", x = xy[, 1], y = xy[, 2]) +
+      geom_edge_link0(edge_width = 0.3, edge_colour = "grey66") +
+      geom_node_point(shape = 21, aes(fill = as.factor(choice), color = border_color), size = 4, stroke = V(evo[[i]])$border_size) +  
+      scale_fill_manual(values = choice_color) +
+      scale_color_identity() +
+      theme_graph() +
+      theme(legend.position = "none") +
+      labs(title = round_title) +
+      theme(plot.title = element_markdown())
+  }
+  
+  # ensure the output directory exists
+  if (!dir.exists(output_dir)) {
+    dir.create(output_dir)
+  }
+  
+  # save each plot to individual files in the specified directory
+  for (i in 1:length(pList)) {
+    ggsave(paste0(output_dir, "/plot_", i, ".png"), plot = pList[[i]], width = 6, height = 6)
+  }
+  
+  # read saved images into a magick image object
+  image_files <- list.files(path = output_dir, pattern = "plot_.*\\.png", full.names = TRUE)
+  
+  # sort the images by their numerical order (1 to X)
+  image_files <- image_files[order(as.numeric(gsub(".*_(\\d+)\\.png", "\\1", image_files)))]
+  
+  img_list <- image_read(image_files)
+  
+  # create an animated gif
+  gif <- image_animate(img_list, fps = 2)
+  
+  # save the gif to a file
+  gif_output_path <- paste0(output_dir, "/animation.gif")
+  image_write(gif, gif_output_path)
+  
+  # remove the temporary plot images
+  file.remove(image_files)
+  
+  return(gif_output_path)
 }
+```
 
-# create layout based on network_segregated
-set.seed(189)
-layout1 = layout_with_fr(network_segregated)
-
-# same for control condition
-network2 <- nets[[ind2[1]]]$network
-network_segregated <- network2
-E(network_segregated)$weight = 1
-
-# add edges with high weight between all nodes in the same group 
-for (i in unique(V(network2)$role)) {
-  roleV = which(V(network2)$role == i)
-  network_segregated = add_edges(network_segregated, combn(roleV, 2), attr=list(weight=1))
+```{r, eval=FALSE}
+# visualize the emergence of an unpopular norm for all candidates for our epxerimental condition:
+for (i in ind2) {
+  network <- nets[[i]]$network
+  decisions <- fabm(
+  network = network,
+  rounds = 20,
+  params = list(s = 15, e = 10, w = 40, z = 50, lambda1 = 4.3, lambda2 = 1.8),
+  plot = TRUE, histories=TRUE)$decision_history
+  
+  # generate the gif for the current network
+  gif_filename <- paste0("./figures/animation_network_", i, ".gif")
+  gif_path <- fnetworkgif(network, decisions, rounds = 20, output_dir = "./figures")
+  
+  # rename the gif to match the naming pattern
+  file.rename(gif_path, gif_filename)
 }
+```
 
-set.seed(289)
-layout2 = layout_with_fr(network_segregated)
-
-fplot_graph(network1, layout_algo = layout1, legend = FALSE, col1 = "purple", col2 = "orange")
-mtext("(A)", side = 3, line = -1, at = -.5, cex=2)
-fplot_graph(network2, layout_algo = layout2, legend = FALSE, col1 = "purple", col2 = "orange")
-mtext("(B)", side = 3, line = -1, at = -.5, cex=2)
-fplot_graph(network1, layout_algo = layout_with_fr(network1), legend = FALSE, col1 = "purple", col2 = "orange")
-fplot_graph(network2, layout_algo = layout_with_fr(network2), legend = FALSE, col1 = "purple", col2 = "orange")
+```{r, echo=FALSE,fig.show='hold',fig.align='center'}
+gif_files <- list.files("./figures/", pattern = "animation_network_.*\\.gif", full.names = TRUE)
+knitr::include_graphics(c(gif_files))
 ``` 
+
+
 
 ---
 
