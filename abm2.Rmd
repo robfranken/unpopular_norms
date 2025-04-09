@@ -14,6 +14,8 @@ output:
     code_download: yes
 ---
 
+
+
 ```{r, globalsettings, echo=FALSE, warning=FALSE, results='hide', message=FALSE}
 library(knitr)
 library(tidyverse)
@@ -44,6 +46,7 @@ rm(list=ls())
 gc()
 ```
 
+<br>
 
 ## custom functions
 
@@ -58,7 +61,10 @@ source("./custom_functions.R")
 ## necessary packages
 
 ```{r, packages}
-packages = c("tidyverse", "igraph", "vioplot", "ggplot2", "ggpubr", "plotly", "parallel", "foreach", "doParallel", "ggh4x", "grid", "gridExtra", "patchwork", "ggplotify", "ggraph", "gganimate", "RColorBrewer", "ggtext", "magick")
+#packages = c("tidyverse", "igraph", "ggplot2", "ggpubr", "plotly", "parallel", "foreach", #"doParallel", "ggh4x", "grid", "gridExtra", "patchwork", "ggplotify", "ggraph", "gganimate", #"RColorBrewer", "ggtext", "magick")
+
+packages = c("tidyverse", "igraph", "ggplot2", "parallel", "doParallel", "foreach")
+
 invisible(fpackage.check(packages))
 rm(packages)
 ```
@@ -88,10 +94,6 @@ conf <- expand.grid(
   lambda2 = 1.8
 )
 
-#1*4*1*1*2*3*5*5=600
-
-conf <- conf[c(730), ]
-
 fshowdf(conf, caption = "full factorial design for configuration model")
 
 # B) watts-strogatz
@@ -100,8 +102,8 @@ ws <- expand.grid(
   minority_prop = c(0.05, 0.1, 0.15, 0.20),
   min_deg = c(2,3),
   p = c(0.07, 0.15, 1),
-  r_kk = seq(-0.4, 0.1, length.out = 5),
-  rho_kx = seq(0, 0.6, length.out = 5),
+  r_kk = seq(-0.4, 0.1, length.out = 6),
+  rho_kx = seq(0, 0.6, length.out = 6),
   s = 15,
   e = 10,
   w = 40,
@@ -109,17 +111,13 @@ ws <- expand.grid(
   lambda1 = 4.3,
   lambda2 = 1.8
 )
-#1*4*2*3*5*5=600
 
 fshowdf(ws, caption = "full factorial design for Watts-Strogatz model")
 ```
 
-```{r}
+```{r, eval=FALSE}
 # number of seeds
-nIter = 1
-
-# list to store results in
-rep_results <- list()
+nIter = 50
 
 # set up parallel backend to increase efficiency
 ncores <- detectCores() - 1 
@@ -127,170 +125,77 @@ cl <- makeCluster(ncores)
 registerDoParallel(cl)
 
 # parallel processing using foreach
-rep_results <- foreach(i = 1:nrow(conf), .combine = 'c', .packages = c("igraph", "tidyverse")) %dopar% {
-  
-  cfg <- conf[i, ]
-  
-  results <- list()  # temporary storage for results
-  
-  for (iter in 1:nIter) {
-    seed <- 123 + iter
-    set.seed(seed)
+system.time({
+  foreach(i = 1:nrow(conf), .combine = 'c', .packages = c("igraph", "tidyverse")) %dopar% {
     
-    # generate degree sequence
-    degseq <- fdegseq(n = cfg$group_size, alpha = cfg$alpha, k_min = cfg$min_deg, k_max = cfg$max_deg, seed = seed, dist = cfg$dist)
+    cfg <- conf[i, ] # get configuration from full factorial
+    results <- list()  # temporary storage for all iterations of this config
     
-    # construct network
-    network <- sample_degseq(degseq, method = "vl")
-    
-    # assign roles
-    V(network)$role <- sample(
-      c(
-        rep("trendsetter", floor(cfg$group_size * cfg$minority_prop)),
-        rep("conformist", cfg$group_size - floor(cfg$group_size * cfg$minority_prop))
+    for (iter in 1:nIter) {
+      seed <- 123 + iter
+      set.seed(seed)
+      
+      # generate degree sequence
+      degseq <- fdegseq(n = cfg$group_size, alpha = cfg$alpha, k_min = cfg$min_deg, k_max = cfg$max_deg, seed = seed, dist = cfg$dist)
+      
+      # construct network
+      network <- sample_degseq(degseq, method = "vl")
+      
+      # assign roles
+      V(network)$role <- sample(
+        c(
+          rep("trendsetter", floor(cfg$group_size * cfg$minority_prop)),
+          rep("conformist", cfg$group_size - floor(cfg$group_size * cfg$minority_prop))
+        )
       )
-    )
-    
-    # rewire and swap
-    rewired_network <- frewire_r(network, cfg$r_kk, verbose = FALSE, max_iter = 1e5)
-    final_network <- fswap_rho(rewired_network, cfg$rho_kx, verbose = FALSE, max_iter = 1e4)
-    actual_r <- assortativity_degree(rewired_network)
-    final_rho <- fdegtraitcor(final_network)$cor
-    
-    # set initial action
-    V(final_network)$action <- ifelse(V(final_network)$role == "trendsetter", 1, 0)
-    
-    # calculate global majority illusion
-    mi <- fcalculate_majority_illusion(final_network)
-    
-    # run simulation
-    sim <- fabm(
-      network = final_network,
-      rounds = 20,
-      params = list(
-        s = cfg$s, e = cfg$e, w = cfg$w, z = cfg$z,
-        lambda1 = cfg$lambda1, lambda2 = cfg$lambda2
+      
+      # rewire and swap
+      rewired_network <- frewire_r(network, cfg$r_kk, verbose = FALSE, max_iter = 1e5)
+      final_network <- fswap_rho(rewired_network, cfg$rho_kx, verbose = FALSE, max_iter = 1e4)
+      actual_r <- assortativity_degree(rewired_network)
+      final_rho <- fdegtraitcor(final_network)$cor
+      
+      # set initial action
+      V(final_network)$action <- ifelse(V(final_network)$role == "trendsetter", 1, 0)
+      
+      # calculate global majority illusion
+      mi <- fcalculate_majority_illusion(final_network)
+      
+      # run simulation
+      sim <- fabm(
+        network = final_network,
+        params = list(
+          s = cfg$s, e = cfg$e, w = cfg$w, z = cfg$z,
+          lambda1 = cfg$lambda1, lambda2 = cfg$lambda2
+        )
       )
-    )
-  
-    sim <- list(
-      outcomes = sim$outcomes,
-      equilibrium = sim$equilibrium
-    )
-
-    # combine all into a single entry per iteration
-    results[[iter]] <- list(
-      config_id = i,
-      dist = cfg$dist,
-      alpha = cfg$alpha,
-      target_r = cfg$r_kk,
-      actual_r = actual_r,
-      target_rho = cfg$rho_kx,
-      actual_rho = final_rho,
-      mi = mi,
-      seed = seed,
-      sim = sim,
-      network = final_network
-    )
+      
+      sim <- list(
+        outcomes = sim$outcomes,
+        equilibrium = sim$equilibrium
+      )
+      
+      # combine all into a single entry per iteration
+      results[[iter]] <- list(
+        config_id = i,
+        dist = cfg$dist,
+        alpha = cfg$alpha,
+        target_r = cfg$r_kk,
+        actual_r = actual_r,
+        target_rho = cfg$rho_kx,
+        actual_rho = final_rho,
+        mi = mi,
+        seed = seed,
+        sim = sim
+      )
+    }
+    
+    # save all iterations for this configuration as a single file
+    saveRDS(results, file = paste0("./sims/results_config_", i, ".rds"))
   }
-
-  results  # returned for this config
-}
-    
+})
+  
 # stop cluster
 stopCluster(cl)
-
-#save output..
-fsave(rep_results, "conf.Rda")
 ```
 
-```{r}
-# number of seeds
-nIter = 1
-
-# list to store results in
-rep_results <- list()
-
-# set up parallel backend to increase efficiency
-ncores <- detectCores() - 1 
-cl <- makeCluster(ncores)
-registerDoParallel(cl)
-
-# parallel processing using foreach
-rep_results <- foreach(i = 1:nrow(ws), .combine = 'c', .packages = c("igraph", "tidyverse")) %dopar% {
-  
-  cfg <- ws[i, ]
-  
-  results <- list()  # temporary storage for results
-  
-  for (iter in 1:nIter) {
-    seed <- 123 + iter
-    set.seed(seed)
-    
-    #construct network
-    network <- sample_smallworld(dim = 1, size = cfg$group_size, nei = cfg$min_deg, p = cfg$p, loops = FALSE, multiple = FALSE)
-    
-    # remove isolates (nodes with degree 0)
-    network <- delete_vertices(network, which(degree(network) == 0))
-    
-    # assign roles
-    V(network)$role <- sample(
-      c(
-        rep("trendsetter", floor( length(V(network)) * cfg$minority_prop)),
-        rep("conformist", length(V(network)) - floor( length(V(network)) * cfg$minority_prop))
-      )
-    )
-  
-    # rewire and swap
-    rewired_network <- frewire_r(network, cfg$r_kk, verbose = FALSE, max_iter = 1e5)
-    final_network <- fswap_rho(rewired_network, cfg$rho_kx, verbose = FALSE, max_iter = 1e4)
-    actual_r <- assortativity_degree(final_network)
-    final_rho <- fdegtraitcor(final_network)$cor
-    
-    # set initial action
-    V(final_network)$action <- ifelse(V(final_network)$role == "trendsetter", 1, 0)
-    
-    # calculate global majority illusion
-    mi <- fcalculate_majority_illusion(final_network)
- 
-    # run simulation
-    sim <- fabm(
-      network = final_network,
-      rounds = 20,
-      params = list(
-        s = cfg$s, e = cfg$e, w = cfg$w, z = cfg$z,
-        lambda1 = cfg$lambda1, lambda2 = cfg$lambda2
-      )
-    )
-  
-    sim <- list(
-      outcomes = sim$outcomes,
-      equilibrium = sim$equilibrium
-    )
-    
-    # combine all into a single entry per iteration
-    results[[iter]] <- list(
-      config_id = i,
-      p = cfg$p,
-      min_deg = cfg$min_deg,
-      target_r = cfg$r_kk,
-      actual_r = actual_r,
-      target_rho = cfg$rho_kx,
-      actual_rho = final_rho,
-      mi = mi,
-      seed = seed,
-      sim = sim,
-      network = final_network
-    )
-  }
-
-  results  # returned for this config
-}
-    
-# stop cluster
-stopCluster(cl)
-
-#save output..
-fsave(rep_results, "ws.Rda")
-fplot_graph(rep_results[[1]]$network)
-```

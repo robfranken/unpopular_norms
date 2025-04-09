@@ -414,7 +414,7 @@ fcalculate_majority_illusion <- function(network, threshold = 0.49) {
 
 # function for our evolutionary model
 fabm <- function(network = network, # the generated network
-                 rounds = 10, # number of timesteps/rounds
+                 max_rounds = 50, # max number of timesteps/rounds
                  choice_rule = "deterministic", # choice update rule
                  utility_fn = futility, # the utility function
                  params = list(s=15, e=10, w=40, z=50, lambda1=4.3, lamda2=1.8), # utility parameters
@@ -438,8 +438,11 @@ fabm <- function(network = network, # the generated network
   equilibrium_reached <- FALSE
   equilibrium_t <- NA
   
-  # simulation loop
-  for (t in 1:rounds) {
+  # simulation until equilibrium reached
+  t <- 1
+  prev_trend_followers <- NA
+  
+  while (t <= max_rounds && !equilibrium_reached) {
     if (t == 1) {
       # round 1: agents make decisions based on private preferences (no social information available yet)
       agents <- agents %>%
@@ -467,28 +470,35 @@ fabm <- function(network = network, # the generated network
           )
         )
     }
+
     # store the decisions for this round
     decision_history <- bind_rows(decision_history, agents %>% 
                                     mutate(round = t))
+    
+    if (t > 1) {
+      curr_trend_followers <- mean(agents$choice == 1, na.rm = TRUE)
+      
+      if (!is.na(prev_trend_followers) &&
+          abs(curr_trend_followers - prev_trend_followers) < .Machine$double.eps) {
+        equilibrium_reached <- TRUE
+        equilibrium_t <- t - 1
+      }
+      
+      prev_trend_followers <- curr_trend_followers
+    } else {
+      prev_trend_followers <- mean(agents$choice == 1, na.rm = TRUE)
+    }
+    
+    t <- t + 1
   }
   
-  # check for equilibrium
-  # @RF: when introducing some stochasticity, this should be handled differently...
-  for(t in 2:rounds ) { 
-    prev_trend_followers <- mean(decision_history %>% filter(round == t - 1) %>% pull(choice) == 1)
-    curr_trend_followers <- mean(decision_history %>% filter(round == t) %>% pull(choice) == 1)
-    
-    if (!equilibrium_reached && abs(curr_trend_followers - prev_trend_followers) < .Machine$double.eps) {
-      equilibrium_reached <- TRUE
-      equilibrium_t <- t - 1  
-    }
-  }
+  final_round <- t - 1
+
   
   # based on decision_history:
-  
   # 1. calculate global majority illusion over rounds
-  globMI <- numeric(rounds)
-  for (t in 1:rounds) {
+  globMI <- numeric(final_round)
+  for (t in 1:final_round) {
     if (t == 1) {
       # in round 1: no social information, so no MI
       globMI[t] <- NA
@@ -506,7 +516,7 @@ fabm <- function(network = network, # the generated network
   
   # to long format
   MI <- tibble(
-    round = 1:rounds,
+    round = 1:final_round,
     outcome = "majority_illusion",
     statistic = globMI
   )
