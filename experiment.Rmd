@@ -1,0 +1,471 @@
+---
+title: "Experiment"
+bibliography: references.bib
+link-citations: true
+date: "Last compiled on `r format(Sys.time(), '%d-%m-%Y')`"
+output: 
+  html_document:
+    self_contained: true
+    css: tweaks.css
+    toc: true
+    toc_float: true
+    number_sections: true
+    toc_depth: 4
+    code_folding: show
+    code_download: yes
+---
+
+```{r, globalsettings, echo=FALSE, warning=FALSE, results='hide', message=FALSE}
+library(knitr)
+library(tidyverse)
+knitr::opts_chunk$set(echo = TRUE)
+opts_chunk$set(tidy.opts=list(width.cutoff=100),tidy=TRUE, warning = FALSE, message = FALSE,comment = "#>", cache=TRUE, class.source=c("test"), class.output=c("test3"))
+options(width = 100)
+rgl::setupKnitr()
+
+colorize <- function(x, color) {sprintf("<span style='color: %s;'>%s</span>", color, x) }
+```
+
+```{r klippy, echo=FALSE, include=TRUE}
+klippy::klippy(position = c('top', 'right'))
+#klippy::klippy(color = 'darkred')
+#klippy::klippy(tooltip_message = 'Click to copy', tooltip_success = 'Done')
+```
+
+---
+
+# Getting started
+
+To copy the code, click the button in the upper right corner of the code-chunks.
+
+## clean up
+
+```{r, clean_up, results='hide'}
+rm(list=ls())
+gc()
+```
+
+<br>
+
+## custom functions
+
+We defined a number custom functions, at `r xfun::embed_file("./custom_functions.R")`.
+
+```{r, custom_functions}
+source("./custom_functions.R")
+```
+
+<br>
+
+## necessary packages
+
+- `tidyverse`: data wrangling
+- `igraph`: generate and visualize graphs
+- `parallel`: parallel computing to speed up simulation
+- `foreach`: looping in parallel
+- `doParallel`: parallel backend for `foreach`
+- `ggplot2`: data visualization
+- `ggh4x`: hacks for `ggplot2`
+- `ggpubr`: make visualizations publication-ready
+
+```{r, packages}
+packages = c("tidyverse", "igraph", "ggplot2", "parallel", "doParallel", "foreach", "ggh4x", "ggpubr", "plotly", "RColorBrewer", "grid", "gridExtra", "patchwork", "ggplotify", "ggraph", "gganimate", "RColorBrewer",
+    "ggtext", "magick", "jsonlite")
+
+invisible(fpackage.check(packages))
+rm(packages)
+```
+
+---
+
+# Experimental conditions
+
+## 1. scale-free network with central minorities
+
+Let's take a likely-case for an unpopular norm, generate multiple networks of this target, and simulate the emergence of the norm following a deterministic and probabilistic choice model:
+
+```{r, echo=TRUE, fig.show='hold', fig.keep='all', message=FALSE, fig.height=5}
+# pick one configuration that likely leads to an unpopular norm, and explore multiple 'seeds':
+run_one_seed <- function(
+  i,
+  base_seed = 1253281,
+  params = list(s = 15, e = 10, w = 40, z = 50, lambda1 = 5, lambda2 = 1.8),
+  
+  # tweak network
+  k_min = 2, 
+  k_max = 20,
+  alpha = 2.4,
+  rho = 0.4,
+  r = -0.1,
+  
+  # retrieve network
+  return_network = FALSE
+  
+) {
+  # derived seed for this run
+  seed_i <- base_seed + i
+  set.seed(seed_i)
+
+  # --- network creation ---
+  degseq <- fdegseq(
+    n      = 100, 
+    alpha  = alpha,
+    k_min  = k_min,
+    k_max  = k_max,
+    dist   = "power-law",
+    seed   = seed_i
+  )
+
+  network <- sample_degseq(degseq, method = "vl")
+  
+  V(network)$role <- sample(
+    c(rep("trendsetter", 10), rep("conformist", 90))
+  )
+  
+  rewired_network <- frewire_r(network, r, verbose = FALSE, max_iter = 1e5)
+  final_network   <- fswap_rho(rewired_network, rho, verbose = FALSE, max_iter = 1e4)
+  
+  # --- stats ---
+  stats <- list(
+    run           = i,
+    seed          = seed_i,
+    num_nodes     = vcount(final_network),
+    num_edges     = ecount(final_network),
+    avg_degree    = mean(degree(final_network)),
+    sd_degree     = sd(degree(final_network)),
+    net_density   = edge_density(final_network),
+    net_diameter  = diameter(final_network, directed = FALSE, unconnected = TRUE),
+    avg_path_len  = average.path.length(final_network, directed = FALSE),
+    clust_coeff   = transitivity(final_network, type = "global"),
+    assort_deg    = assortativity_degree(final_network),
+    deg_trait_cor = fdegtraitcor(final_network)$cor,
+    components    = components(final_network)$no
+  )
+  
+  fplot_graph(final_network) 
+  
+  # --- initial actions ---
+  V(final_network)$action <- ifelse(V(final_network)$role == "trendsetter", 1, 0)
+  
+  # --- deterministic simulation ---
+  sim_det <- fabm(
+    network      = final_network,
+    params       = params,
+    max_rounds   = 50,
+    mi_threshold = 0.49,
+    choice_rule  = "deterministic",
+    plot         = TRUE,
+    histories    = TRUE
+  )
+  
+  # generate the gif for the current network
+  gif_filename <- paste0("./figures/animation_network_", seed_i, ".gif")
+  gif_path <- fnetworkgif(final_network, sim_det$decision_history, rounds = sim_det$equilibrium$round, output_dir = "./figures")
+  # rename the gif to match the naming pattern
+  file.rename(gif_path, gif_filename)
+
+  if (!is.null(sim_det$plot)) {
+    print(sim_det$plot)
+  }
+  
+  # --- probabilistic simulation ---
+  sim_prob <- fabm(
+    network                = final_network,
+    params                 = params,
+    max_rounds             = 100,
+    mi_threshold           = 0.49,
+    choice_rule            = "probabilistic",
+    stable_window          = 8,   # the length of the window of adoption values
+    required_stable_rounds = 20, # number of windows needed to declare equilibrium
+    plot                   = TRUE
+  )
+  if (!is.null(sim_prob$plot)) {
+    print(sim_prob$plot)
+  }
+  
+   result <- list(
+    segregation_det  = sim_det$equilibrium$segregation,
+    segregation_prob = sim_prob$equilibrium$segregation,
+    stats            = stats
+  )
+  
+  if (return_network) {
+    result$network <- final_network
+  }
+  
+  result
+}
+
+```
+
+
+```{r}
+test <- run_one_seed(1, k_min = 2, k_max = 20, alpha = 2.4, rho = 0.4, r = -0.1, return_network = TRUE)
+
+base = 1253281
+seed = base + 1
+``` 
+
+```{r, out.width="60%"}
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+```
+
+```{r}
+test <- run_one_seed(2, k_min = 2, k_max = 30, alpha = 2.4, rho = 0.4, r = -0.1, return_network = TRUE)
+seed = seed + 1
+
+test$stats
+```
+
+```{r, out.width="60%"}
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+```
+
+```{r, eval = FALSE}
+# use this as the network structure for an otree session:
+cbind(degree(test$network),V(test$network)$role)
+
+# convert to adjacency matrix
+adj_matrix <- as.matrix(as_adjacency_matrix(test$network))
+
+#get roles
+role_vector <- ifelse(V(test$network)$role == "trendsetter",1,0)
+# create a list to store the network data
+net <- list(adj_matrix = adj_matrix, role_vector = role_vector)
+# save the list as a JSON file
+write_json(net, "network_test_n100.json")
+
+```
+
+
+```{r}
+test <- run_one_seed(3, k_min = 2, k_max = 20, alpha = 2.4, rho = 0.4, r = -0.1)
+seed = seed + 1
+```
+
+```{r, out.width="60%"}
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+```
+
+```{r}
+test <- run_one_seed(4, k_min = 2, k_max = 20, alpha = 2.4, rho = 0.4, r = -0.1)
+seed = seed + 1
+```
+
+```{r, out.width="60%"}
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+```
+
+```{r}
+test <- run_one_seed(5, k_min = 2, k_max = 20, alpha = 2.4, rho = 0.4, r = -0.1)
+seed = seed + 1
+```
+
+```{r, out.width="60%"}
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+```
+
+```{r}
+test <- run_one_seed(6, k_min = 2, k_max = 20, alpha = 2.4, rho = 0.4, r = -0.1)
+seed = seed + 1
+```
+
+```{r, out.width="60%"}
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+```
+
+```{r}
+test <- run_one_seed(7, k_min = 2, k_max = 20, alpha = 2.4, rho = 0.4, r = -0.1)
+seed = seed + 1
+```
+
+```{r, out.width="60%"}
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+```
+
+Increase the density:
+
+```{r}
+test <- run_one_seed(8, k_min = 4, k_max = 99, alpha = 2.1, rho = 0.5, r = -0.4)
+seed = seed + 1
+``` 
+
+```{r, out.width="60%"}
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+```
+
+```{r}
+test <- run_one_seed(9, k_min = 4, k_max = 99, alpha = 2.1, rho = 0.5, r = -0.4)
+seed = seed + 1
+```
+
+```{r, out.width="60%"}
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+```
+
+```{r}
+test <- run_one_seed(10, k_min = 4, k_max = 99, alpha = 2.1, rho = 0.5, r = -0.4)
+seed = seed + 1
+```
+
+```{r, out.width="60%"}
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+```
+
+```{r}
+test <- run_one_seed(11, k_min = 4, k_max = 99, alpha = 2.1, rho = 0.5, r = -0.4)
+seed = seed + 1
+```
+
+```{r, out.width="60%"}
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+```
+
+```{r}
+test <- run_one_seed(12, k_min = 4, k_max = 99, alpha = 2.1, rho = 0.5, r = -0.4)
+seed = seed + 1
+```
+
+```{r, out.width="60%"}
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+```
+
+
+```{r}
+test <- run_one_seed(13, k_min = 4, k_max = 99, alpha = 2.1, rho = 0.5, r = -0.4)
+seed = seed + 1
+```
+
+```{r, out.width="60%"}
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+```
+
+
+```{r}
+test <- run_one_seed(14, k_min = 4, k_max = 99, alpha = 2.1, rho = 0.5, r = -0.4)
+seed = seed + 1
+```
+
+```{r, out.width="60%"}
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+```
+
+
+
+## 2. small-worlds
+
+
+```{r, eval = FALSE, echo=TRUE, fig.show='hold', fig.keep='all', message=FALSE, fig.height=5}
+run_one_sw <- function(
+  i,
+  base_seed = 1253281,
+  model = "watts-strogatz",
+  beta = 0,
+  nei = 3,
+  clique_size = 5,
+  pmin = 0.1,
+  
+  params = list(s = 15, e = 10, w = 40, z = 50, lambda1 = 5, lambda2 = 1.8)
+) {
+  # derived seed for this run
+  seed_i <- base_seed + i
+  set.seed(seed_i)
+
+  if (model == "watts-strogatz") {
+    network <- sample_smallworld(dim = 1, size = 100, nei = 3, p = beta) }
+  else if (model == "caveman") {
+    network <- simulate_caveman(n = 100, clique_size = clique_size) 
+  }
+
+  V(network)$role <- sample(
+    c(rep("trendsetter", round(100*pmin)), rep("conformist", 100-round(100*pmin)))
+  )
+  
+  
+  final_network <- network
+
+  
+  # --- stats ---
+  stats <- list(
+    run           = i,
+    seed          = seed_i,
+    num_nodes     = vcount(final_network),
+    num_edges     = ecount(final_network),
+    avg_degree    = mean(degree(final_network)),
+    sd_degree     = sd(degree(final_network)),
+    net_density   = edge_density(final_network),
+    net_diameter  = diameter(final_network, directed = FALSE, unconnected = TRUE),
+    avg_path_len  = average.path.length(final_network, directed = FALSE),
+    clust_coeff   = transitivity(final_network, type = "global"),
+    assort_deg    = assortativity_degree(final_network),
+    deg_trait_cor = fdegtraitcor(final_network)$cor,
+    components    = components(final_network)$no
+  )
+  
+  stats_df <- data.frame(
+    Metric = names(stats),
+    Value  = unlist(stats),
+    row.names = NULL
+  )
+  
+  #print(stats_df)
+  fplot_graph(final_network, layout = layout.kamada.kawai(final_network))
+  
+
+  # --- initial actions ---
+  V(final_network)$action <- ifelse(V(final_network)$role == "trendsetter", 1, 0)
+  
+  # --- deterministic simulation ---
+  sim_det <- fabm(
+    network      = final_network,
+    params       = params,
+    max_rounds   = 50,
+    mi_threshold = 0.49,
+    choice_rule  = "deterministic",
+    plot         = TRUE,
+    histories    = TRUE
+  )
+
+  # generate the gif for the current network
+  gif_filename <- paste0("./figures/animation_network_", seed_i, ".gif")
+  gif_path <- fnetworkgif(final_network, sim_det$decision_history, rounds = sim_det$equilibrium$round, output_dir = "./figures")
+  # rename the gif to match the naming pattern
+  file.rename(gif_path, gif_filename)
+  
+  
+  if (!is.null(sim_det$plot)) {
+    print(sim_det$plot)
+  }
+  
+  # --- probabilistic simulation ---
+  sim_prob <- fabm(
+    network                = final_network,
+    params                 = params,
+    max_rounds             = 100,
+    mi_threshold           = 0.49,
+    choice_rule            = "probabilistic",
+    stable_window          = 8,   # the length of the window of adoption values
+    required_stable_rounds = 20, # number of windows needed to declare equilibrium
+    plot                   = TRUE
+  )
+  if (!is.null(sim_prob$plot)) {
+    print(sim_prob$plot)
+  }
+  
+  list(
+    #run   = i,
+    #seed  = seed_i,
+    segregation_det = sim_det$equilibrium$segregation,
+    segregation_prob = sim_prob$equilibrium$segregation,
+    stats = stats
+  )
+}
+```
+
+```{r, eval =FALSE}
+test <- run_one_sw(i=15, model = "caveman", clique_size = 5, pmin = .15)
+seed = seed + 1
+
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+```
+

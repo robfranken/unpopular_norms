@@ -18,6 +18,10 @@ navbar:
     - icon: fas fa-users
       text: "Agent-based model"
       href: abm.html
+    - icon: fa-microscope
+      text: "Experiment"
+      href: experiment.html
+    - icon: 
   right:
     - icon: fab fa-github
       href: https://github.com/robfranken/unpopular_norms

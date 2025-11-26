@@ -34,9 +34,10 @@ klippy::klippy(position = c('top', 'right'))
 
 ----
 
-# **The spread of an unpopular norm in a social network experiment**
+# **The emergence of an unpopular norm in a social network experiment**
 
 #### [Rob Franken](https://robfranken.github.io/) - Utrecht University
+#### [Rense Corten](https://www.uu.nl/staff/RCorten) - Utrecht University
 
 
 Last compiled on `r format(Sys.time(), '%d-%m-%Y')`

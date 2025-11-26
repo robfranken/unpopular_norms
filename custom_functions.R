@@ -1,6 +1,6 @@
 #custom functions
 #by Rob Franken
-#last edited: 26-02-2025
+#last edited: 7-5-2025
 
 # function to install/load packages
 fpackage.check <- function(packages) {
@@ -35,6 +35,15 @@ fshowdf <- function(x, ...) {
     kableExtra::scroll_box(width = "100%", height = "300px")
 }
 
+# visualize parameter spaces
+fdesign <- function(df) {
+  purrr::imap_dfr(df, ~list(
+    parameter = .y,
+    n_levels = length(unique(.x)),
+    levels = paste(sort(unique(.x)), collapse = ", ")
+  ))
+}
+
 # visualize graph in the "multi-population"
 fplot_graph <- function(graph, main=NULL, layout_algo=NULL, 
                         col1 = "#800080", col2 =  "#FFD700", legend=TRUE) {
@@ -63,6 +72,7 @@ fplot_graph <- function(graph, main=NULL, layout_algo=NULL,
 futility <- function(agent_id, choice, agents, network, params) {
   # get ego and his local neighborhood
   ego <- agents[agent_id, ]
+  
   neighbors <- neighbors(network, ego$id)
   alters <- agents[as.numeric(neighbors), ]
   n <- nrow(alters)
@@ -80,6 +90,7 @@ futility <- function(agent_id, choice, agents, network, params) {
   if(ego$role == "conformist") {
     if (choice == 0) { # resist the trend
       choice_payoff <- params$s # fixed utility for resisting
+      
       coordination_payoff <- diminishing_returns(q, params$w, params$lambda2)
     } else { #follow the trend
       choice_payoff <- 0
@@ -116,7 +127,7 @@ fdegseq <- function(n, dist = "power-law", alpha, k_min = 1, k_max = n - 1, seed
   probs <- probs / sum(probs) 
   
   # sample a degree sequence
-  degseq <- sample(k_min:k_max, size = n, replace = TRUE, prob = (1/(k_min:k_max))^alpha)
+  degseq <- sample(k_min:k_max, size = n, replace = TRUE, prob = probs)
   
   # correct the degree sequence if its sum is odd (necessary for the configuration model)
   if (sum(degseq) %% 2 != 0) {
@@ -129,7 +140,7 @@ fdegseq <- function(n, dist = "power-law", alpha, k_min = 1, k_max = n - 1, seed
     
   } else if (dist == "log-normal") {
     # if the specified distribution type is log-normal, generate a degree sequence following this distribution;
-    # but with a same mean degree <k> as its 'scale-free' counterpart. the spread alpha = 1. 
+    # but with a same mean degree <k> as its 'power-law' counterpart. the spread alpha = 1. 
     
     # calculate mean degree in sequence
     mean_deg <- mean(degseq)
@@ -415,10 +426,13 @@ fcalculate_majority_illusion <- function(network, threshold = 0.49) {
 # function for our evolutionary model
 fabm <- function(network = network, # the generated network
                  max_rounds = 50, # max number of timesteps/rounds
-                 choice_rule = "deterministic", # choice update rule
+                 choice_rule = "deterministic",
+                 epsilon = .10, # flipping probability drawn anew for each agent each round
                  utility_fn = futility, # the utility function
-                 params = list(s=15, e=10, w=40, z=50, lambda1=4.3, lamda2=1.8), # utility parameters
-                 mi_threshold = ifelse(params$z > 50, .49, .50), # under the "strong influence" condition (i.e., 50<z<90) half of neighbors adopting the trend is sufficient; under the "weak influence" condition (i.e., 30<z<50) *more* than half of neighbors adopting the trend is needed to be influenced.)
+                 params = list(s=15, e=10, w=40, z=50, lambda1=4.3, lambda2=1.8), # utility parameters
+                 mi_threshold = ifelse(params$z > 50, .49, .50), # threshold for influence
+                 stable_window = 5, # numbers of recent rounds to assess stationarity
+                 required_stable_rounds = 4, # consecutive windows needed to confirm stochastic equilibrium
                  histories = FALSE, # return decision history
                  outcome = TRUE, # return outcomes
                  plot = FALSE ) { # return plot
@@ -427,12 +441,13 @@ fabm <- function(network = network, # the generated network
   agents <- tibble(
     id = 1:length(network),
     role = V(network)$role,
-    preference = ifelse(role == "trendsetter", 1, 0), # 1 = follow trend, 0 = not follow
-    choice = NA,
-    beta = rgamma(length(network), shape = 2, scale = 1.5)) # Gamma-distributed noise level (for conformists' decisions under probabilistic choice rule)
+    preference = ifelse(V(network)$role == "trendsetter", 1, 0), # 1 = follow trend, 0 = not follow
+    choice = NA
+  )
   
-  # initialize decision history
-  decision_history <- tibble()
+  # initialize decision history 
+  decision_history <- tibble() # all decisions (utilities + errors)
+  adoption_history <- c() # number of adopters over time
   
   # also initialize an equilibrium flag
   equilibrium_reached <- FALSE
@@ -440,60 +455,66 @@ fabm <- function(network = network, # the generated network
   
   # simulation until equilibrium reached
   t <- 1
-  prev_trend_followers <- NA
+  stable_rounds <- 0 # for stochastic equilibrium use a counter
+  stable_threshold <- epsilon / 2  # set stable threshold (i.e., sd threshold under which a window is considered stable) to half of epsilon
   
   while (t <= max_rounds && !equilibrium_reached) {
     if (t == 1) {
-      # round 1: agents make decisions based on private preferences (no social information available yet)
       agents <- agents %>%
         mutate(choice = preference)
     } else {
-      # round t > 1: agents make decisions based on social information from neighbors (decisions at t-1)
       agents <- agents %>%
         rowwise() %>%
         mutate(
-          util_1 = utility_fn(id, 1, agents, network, list(s = params$s, e = params$e, w = params$w, z = params$z, lambda1 = params$lambda1, lambda2 = params$lambda2))$utility,
-          util_0 = utility_fn(id, 0, agents, network, list(s = params$s, e = params$e, w = params$w, z = params$z, lambda1 = params$lambda1, lambda2 = params$lambda2))$utility,
-          
-          #compute probability of following the trend for conformists
-          prob_follow = 1 / ( 1 + exp(-beta * (util_1 - util_0))),
-          
-          # make decision based on expected utility
+          util_1 = utility_fn(id, 1, agents, network, params)$utility,
+          util_0 = utility_fn(id, 0, agents, network, params)$utility,
+          rational_choice = ifelse(util_1 > util_0, 1, 0),
+          error = runif(1) < epsilon,
           choice = ifelse(
             role == "trendsetter",
-            ifelse(util_1 > util_0, 1, 0), #always deterministic
+            rational_choice,
             ifelse(
               choice_rule == "deterministic",
-              ifelse(util_1 > util_0, 1, 0), # deterministic if specified
-              rbinom(1, 1, prob_follow) # probabilistic otherwise
+              rational_choice,
+              ifelse(error & rational_choice == 1, 0, rational_choice)
             )
           )
-        )
+        ) 
     }
-
-    # store the decisions for this round
-    decision_history <- bind_rows(decision_history, agents %>% 
-                                    mutate(round = t))
     
+    # record decisions
+    decision_history <- bind_rows(decision_history, agents %>% mutate(round = t))
+    curr_adoption <- mean(agents$choice == 1)
+    adoption_history <- c(adoption_history, curr_adoption)
+    
+    # equilibrium logic
     if (t > 1) {
-      curr_trend_followers <- mean(agents$choice == 1, na.rm = TRUE)
+      prev_adoption <- adoption_history[t - 1]
       
-      if (!is.na(prev_trend_followers) &&
-          abs(curr_trend_followers - prev_trend_followers) < .Machine$double.eps) {
-        equilibrium_reached <- TRUE
-        equilibrium_t <- t - 1
+      if (choice_rule == "deterministic") {
+        if (!is.na(prev_adoption) && abs(curr_adoption - prev_adoption) == 0) {
+          equilibrium_reached <- TRUE
+          equilibrium_t <- t - 1
+        }
+      } else if (choice_rule == "probabilistic") {
+        
+        if (t >= stable_window + 1) {
+          recent_window <- tail(adoption_history, stable_window)
+          if (sd(recent_window) < stable_threshold) {
+            stable_rounds <- stable_rounds + 1
+          } else {
+            stable_rounds <- 0
+          }
+          if (stable_rounds >= required_stable_rounds) {
+            equilibrium_reached <- TRUE
+            equilibrium_t <- t
+          }
+        }
       }
-      
-      prev_trend_followers <- curr_trend_followers
-    } else {
-      prev_trend_followers <- mean(agents$choice == 1, na.rm = TRUE)
     }
-    
     t <- t + 1
   }
-  
   final_round <- t - 1
-
   
   # based on decision_history:
   # 1. calculate global majority illusion over rounds
@@ -535,36 +556,90 @@ fabm <- function(network = network, # the generated network
   plotdata <- bind_rows(MI, UN)
   
   if (plot) {
-    fig <- ggplot(plotdata, aes(x=round, y=statistic, color=factor(outcome))) +
+    fig <- ggplot(plotdata, aes(x = round, y = statistic, color = factor(outcome))) +
       geom_line() +
       geom_point() +
-      scale_y_continuous(labels = scales::percent_format(scale = 100), limits = c(0,1)) +
+      scale_y_continuous(labels = scales::percent_format(scale = 100), limits = c(0, 1)) +
       scale_x_continuous(breaks = seq(1, max(plotdata$round), by = 1)) +
       labs(
         title = "Evolution of an unpopular norm",
-        subtitle = "`follow_trend` denotes the percentage of all agents that follow the trend.\n`majority_illusion` reflects the percentage of conformists whose neighbors meet or exceed the adoption threshold φ (i.e., 0.50),\nwith 'strong influence' referring to both meeting and exceeding the threshold, and 'weak influence' to exceeding it only.\nThe grey dashed line reflects the percentage of agents whose role is trendsetter. The purple circle depicts the equilibrium point.",
+        subtitle = "`follow_trend` denotes the percentage of all agents that follow the trend.\n`majority_illusion` reflects the percentage of conformists whose neighbors meet or exceed the adoption threshold φ (i.e., 0.50),\nwith 'strong influence' referring to both meeting and exceeding the threshold, and 'weak influence' to exceeding it only.\nThe grey dashed line reflects the percentage of agents whose role is trendsetter. The purple circle (deterministic)\nor shaded purple region (probabilistic) indicates the equilibrium.",
         x = "round",
         y = "% agents",
-        color = "outcome") +
-      theme(panel.grid.minor.x = element_blank(),
-            #legend.position = "bottom",
-            plot.subtitle = element_text(size = 8)) +
-      geom_hline(yintercept = prop.table(table(agents$role))[2], linetype = "dashed", color = "darkgrey", size = 1)
+        color = "outcome"
+      ) +
+      theme(
+        panel.grid.minor.x = element_blank(),
+        # legend.position = "bottom",
+        plot.subtitle = element_text(size = 8)
+      ) +
+      geom_hline(
+        yintercept = prop.table(table(agents$role))[2],
+        linetype = "dashed",
+        color = "darkgrey",
+        size = 1
+      )
     
     # add a circle around the equilibrium state 'follow_trend' statistic
-    if (!is.na(equilibrium_t)) {
+    # only for the deterministic model (true point equilibrium)
+    if (!is.na(equilibrium_t) && choice_rule == "deterministic") {
       fig <- fig + geom_point(
-        data = plotdata %>% filter(round == equilibrium_t & outcome == "follow_trend"),
-        aes(x = round, y = statistic), 
+        data = plotdata %>% dplyr::filter(round == equilibrium_t & outcome == "follow_trend"),
+        aes(x = round, y = statistic),
         shape = 1, size = 4, color = "purple", stroke = 2
       )
     }
+    
+    # highlight equilibrium region for probabilistic model (stable window)
+    if (!is.na(equilibrium_t) && choice_rule == "probabilistic" && final_round >= stable_window) {
+      # equilibrium_t is the last round at which equilibrium was detected
+      eq_end   <- equilibrium_t
+      eq_start <- max(1, equilibrium_t - stable_window + 1)
+      
+      fig <- fig +
+        annotate(
+          "rect",
+          xmin = eq_start - 0.5,
+          xmax = eq_end + 0.5,
+          ymin = -Inf,
+          ymax = Inf,
+          alpha = 0.05,
+          fill = "purple"
+        )
+      # no extra points here; the band alone represents stochastic equilibrium
+    }
+  }
+  
+  if (!is.na(equilibrium_t)) {
+    # get agents' behaviors at equilibrium
+    final_choices <- decision_history %>%
+      filter(round == equilibrium_t) %>%
+      arrange(id) %>%
+      pull(choice)
+    
+    # attach to the network
+    V(network)$final_choice <- final_choices
+    
+    # behavioral assortativity
+    r_behavior <- igraph::assortativity_nominal(network, types = final_choices + 1, directed = FALSE)
+    
+    # L1CC share
+    S1 <- which(final_choices == 1)
+    L1CC_share <- if (length(S1) == 0) NA_real_ else {
+      g1 <- igraph::induced_subgraph(network, S1)
+      cc <- igraph::components(g1)$csize
+      max(cc) / length(S1)
+    }
+    segregation <- list(r_behavior = r_behavior, L1CC_share = L1CC_share)
+  } else {
+    segregation <- list(r_behavior = NA, L1CC_share = NA)
   }
   
   # return outputs
   output <- list()
   if (histories) { 
-    output$decision_history <- decision_history}
+    output$decision_history <- decision_history
+  }
   
   if (outcome) { 
     output$outcomes <- plotdata
@@ -572,16 +647,27 @@ fabm <- function(network = network, # the generated network
       reached = equilibrium_reached,
       round = equilibrium_t,
       prop_follow_trend = if (!is.na(equilibrium_t)) {
-        mean(decision_history %>% filter(round == equilibrium_t) %>% pull(choice) == 1)
-      } else { NA }
+        mean(
+          decision_history %>%
+            dplyr::filter(round == equilibrium_t) %>%
+            dplyr::pull(choice) == 1
+        )
+      } else {
+        NA_real_
+      },
+      segregation = segregation
     )
   }
-  if (plot) { output$plot <- fig}
+  
+  if (plot) { 
+    output$plot <- fig
+  }
+  
   return(output)
 }
 
 # function to create a plot displaying the outputs (% norm followers) across simulated networks
-fcreate__outcome_plot <- function(p_t_level) {
+fcreate_outcome_plot <- function(p_t_level) {
   data_filtered <- data %>% filter(p_t == p_t_level)
   
   ggplot(data_filtered, aes(x = actual_rho, y = actual_r, color = prop_trend)) +
@@ -609,71 +695,353 @@ fcreate__outcome_plot <- function(p_t_level) {
 }
 
 # function to display aggregated outcomes (probability of a negative cascade) across the parameter space
-fcreate_heatmap <- function(p_t_level) {
-  # filter data for the given level of p_t
-  data_filtered <- data %>% filter(p_t == p_t_level)
+fcreate_heatmap <- function(data, choice_rule, minority_prop, kmin, kmax, influence) {
   
-  # summarize the data
+  data_filtered <- data %>%
+    filter(
+      minority_prop == !!minority_prop,
+      choice_rule == !!choice_rule,
+      min_deg == !!kmin,
+      max_deg == !!kmax,
+      influence == !!influence
+    )
+  
   data_summary <- data_filtered %>%
     group_by(target_rho, target_r, alpha, dist) %>%
     summarize(
-      `P(neg. cascade)` = mean(prop_trend == 1, na.rm = TRUE),  # mean of prop_trend == 1
-      n = n(),  # count of observations in each group
-      se_prob = sqrt((`P(neg. cascade)` * (1 - `P(neg. cascade)` )) / n),  # standard error for the proportion
+      `P(neg. cascade)` = mean(unpop == 1, na.rm = TRUE),
+      n = n(),
       .groups = "drop"
     )
   
-  # find the highest value for each facet
   max_values <- data_summary %>%
     group_by(alpha, dist) %>%
     filter(`P(neg. cascade)` == max(`P(neg. cascade)`)) %>%
     distinct(alpha, dist, .keep_all = TRUE) %>%
     ungroup()
   
-  # create the heatmap
   ggplot(data_summary, aes(x = target_rho, y = target_r, fill = `P(neg. cascade)`)) +
-    geom_tile(color = "white") +  #  with gridlines
+    geom_tile(color = "white") +
     scale_fill_gradientn(
-      colors = c("lightblue", "yellow", "red", "black"), 
+      colors = c("lightblue", "yellow", "orange", "red"), 
       name = "P(neg. cascade)",
-      limits = c(0, 1)  # ensure the fill scale ranges between 0 and 1
+      limits = c(0, 1)
     ) +
     facet_grid2(
       rows = vars(dist),
       cols = vars(alpha),
       scales = "free",
       independent = TRUE,
-      labeller = labeller(alpha = function(x) paste0("\u03B1=", x)) 
+      labeller = labeller(alpha = function(x) paste0("\u03B1=", x))
     ) +
-    # add a line connecting the text box to the corresponding tile (drawn first)
-    #geom_segment(data = max_values, 
-    #             aes(x = target_rho, y = target_r, 
-    #                 xend = target_rho - 0.3, yend = target_r),
-    #             color = "black", size = 0.5) +  # thin line connecting text and tile
-    # add a point at the center of the cell
-    #geom_point(data = max_values, 
-    #           aes(x = target_rho, y = target_r),
-    #           color = "black", size = 1) +  # point (dot) at the center of the cell
-    # add a label box with the highest value per panel (light fill color)
-    #geom_label(data = max_values, 
-  #           aes(label = paste0("P = ", round(`P(neg. cascade)`, 2))),
-  #           fill = "gray90", color = "black", size = 4, 
-  #           label.padding = unit(0.2, "lines"), label.size = 0.2, 
-  #           nudge_x = -0.3, nudge_y = 0) +  # light gray background
-  labs(
-    x = expression(rho[kx]), 
-    y = expression(r[kk]), 
-    title = paste("Proportion trendsetters =", p_t_level)  # add a title for each level of p_t
-  ) +
+    labs(
+      x = expression(rho[kx]), 
+      y = expression(r[kk]), 
+      title = paste("Proportion minorities =", minority_prop)
+    ) +
     theme_minimal() +
     theme(
       strip.background = element_rect(fill = "grey90", color = "grey50"),
-      legend.position = "right"  # move legend to the bottom for consistent layout
+      legend.position = "right"
     )
 }
 
+fcreate_heatmap_sw <- function(data, choice_rule, minority_prop, influence) {
+  
+  data_filtered <- data %>%
+    filter(
+      minority_prop == !!minority_prop,
+      choice_rule == !!choice_rule,
+      influence == !!influence
+    )
+  
+  data_summary <- data_filtered %>%
+    group_by(target_rho, target_r, min_deg, p) %>%
+    summarize(
+      `P(neg. cascade)` = mean(unpop == 1, na.rm = TRUE),
+      n = n(),
+      .groups = "drop"
+    )
+  
+  ggplot(data_summary, aes(x = target_rho, y = target_r, fill = `P(neg. cascade)`)) +
+    geom_tile(color = "white") +
+    scale_fill_gradientn(
+      colors = c("lightblue", "yellow", "orange", "red"), 
+      name = "P(neg. cascade)",
+      limits = c(0, 1)
+    ) +
+    facet_grid2(
+      rows = vars(min_deg),   
+      cols = vars(p),         
+      scales = "free",
+      independent = TRUE,
+      labeller = labeller(
+        min_deg = function(x) parse(text = paste0("k_min = ", x)),
+        p = function(x) parse(text = paste0("p = ", x))
+      )
+    ) +
+    labs(
+      x = expression(rho[kx]), 
+      y = expression(r[kk]), 
+      title = paste("Proportion minorities =", minority_prop)
+    ) +
+    theme_minimal() +
+    theme(
+      strip.background = element_rect(fill = "grey90", color = "grey50"),
+      legend.position = "right"
+    )
+}
+
+fcreate_heatmap2 <- function(data, choice_rule, minority_prop, kmin, influence) {
+  
+  # filter data
+  data_filtered <- data %>%
+    filter(
+      minority_prop == !!minority_prop,
+      choice_rule == !!choice_rule,
+      min_deg == !!kmin,
+      influence == !!influence
+    )
+  
+  # summarize data
+  data_summary <- data_filtered %>%
+    group_by(target_rho, target_r, alpha, dist) %>%
+    summarize(
+      mean_b = mean(final_adoption_rate, na.rm = TRUE),
+      sd_b = sd(final_adoption_rate, na.rm = TRUE) / sqrt(n()),
+      n = n(),
+      .groups = "drop"
+    )
+  
+  # Create heatmap with overlaid point showing SD
+  ggplot(data_summary, aes(x = target_rho, y = target_r)) +
+    geom_tile(aes(fill = mean_b), color = "white") +
+    geom_point(aes(size = sd_b), color = "black", alpha = 0.7) +
+    scale_fill_gradientn(
+      colors = c("lightblue", "yellow", "orange", "red"),
+      name = "Mean % Adopting",
+      limits = c(0, 1)
+    ) +
+    scale_size_continuous(
+      name = "SE",
+      range = c(0.1, 2)  # adjust size range to your liking
+    ) +
+    facet_grid2(
+      rows = vars(dist),
+      cols = vars(alpha),
+      scales = "free",
+      independent = TRUE,
+      labeller = labeller(alpha = function(x) paste0("\u03B1=", x))
+    ) +
+    labs(
+      x = expression(rho[kx]),
+      y = expression(r[kk]),
+      title = paste("Proportion minorities =", minority_prop)
+    ) +
+    theme_minimal() +
+    theme(
+      strip.background = element_rect(fill = "grey90", color = "grey50"),
+      legend.position = "right"
+    )
+}
+
+foutcomes <- function(data, choice_rule, minority_prop, kmin, influence) {
+  
+  # filter data for the given input
+  df_filtered <- data %>%
+    filter(
+      minority_prop == !!minority_prop,
+      choice_rule == !!choice_rule,
+      min_deg == !!kmin,
+      influence == !!influence
+    )
+  
+  
+  
+  fig1 <- plot_ly()
+  for (dist in unique(df_filtered$dist)) {
+    fig1 <- fig1 %>%
+      add_trace(
+        data = df_filtered[df_filtered$dist == dist, ],
+        x = ~alpha,
+        y = ~actual_rho,
+        z = ~actual_r,
+        color = ~final_adoption_rate,
+        type = 'scatter3d',
+        mode = 'markers',
+        marker = list(size = 3),
+        name = as.character(dist),
+        hovertemplate = paste(
+          "α: %{x}<br>",
+          "ρ_{xk}: %{y}<br>",
+          "r_{kk}: %{z}<br>",
+          "Final Adoption Rate: %{marker.color}<extra></extra>"
+        )
+      )
+  }
+  
+  fig1 <- fig1 %>%
+    layout(
+      title = '3D scatterplot of the final adoption by degree distribution type',
+      scene = list(
+        xaxis = list(title = "α"),
+        yaxis = list(title = "ρ_{xk}"),
+        zaxis = list(title = "r_{kk}")
+      )
+    ) %>%
+    colorbar(title="")
+  
+  # fit models using *filtered* data
+  #m1 <- lm(final_adoption_rate ~ actual_rho + actual_r + as.factor(alpha), data = df_filtered[df_filtered$dist == "power-law", ])
+  #m2 <- lm(final_adoption_rate ~ actual_rho + actual_r + as.factor(alpha) + actual_rho:actual_r, data = df_filtered[df_filtered$dist == "power-law", ])
+  m3 <- lm(final_adoption_rate ~ actual_rho + actual_r + as.factor(alpha) + actual_rho:actual_r + actual_rho:as.factor(alpha) + actual_r:as.factor(alpha), data = df_filtered[df_filtered$dist == "power-law", ])
+  
+  # create sequences of values for rho, r, and alpha for predictions
+  rho_vals <- seq(min(df_filtered[df_filtered$dist == "power-law",]$actual_rho), max(df_filtered[df_filtered$dist == "power-law",]$actual_rho), length.out = 50)
+  r_vals <- seq(min(df_filtered[df_filtered$dist == "power-law",]$actual_r), max(df_filtered[df_filtered$dist == "power-law",]$actual_r), length.out = 50)
+  alpha_vals <- c(2.1, 2.5, 3)
+  
+  # function to generate surface data based on predictions for final_adoption_rate
+  fsurfacedat <- function(alpha_val) {
+    # create a grid of r and rho values
+    grid <- expand.grid(actual_r = r_vals, actual_rho = rho_vals)
+    
+    # add fixed alpha value
+    grid$alpha <- alpha_val
+    
+    # predict final_adoption_rate using the model
+    grid$adoption_pred <- predict(m3, newdata = grid)
+    
+    # reshape the predictions into a matrix for surface plotting
+    adoption_matrix <- matrix(grid$adoption_pred, nrow = length(r_vals), ncol = length(rho_vals), byrow = TRUE)
+    
+    return(adoption_matrix)
+  }
+  
+  # precompute the surface data for all alpha values
+  surface_data_list <- lapply(alpha_vals, fsurfacedat)
+  
+  # find the global range of final_adoption_rate (z values) for color scaling
+  z_min <- min(sapply(surface_data_list, min))
+  z_max <- max(sapply(surface_data_list, max))
+  
+  # create the initial surface plot with the first alpha value
+  fig2 <- plot_ly(
+    x = r_vals,  # x-axis: r
+    y = rho_vals,  # y-axis: rho
+    z = surface_data_list[[1]],  # surface data for the first alpha value
+    type = "surface",
+    colorbar = list(
+      #title = "Unpopular norm followers at equilibrium",
+      cmin = z_min,
+      cmax = z_max
+    ),
+    cmin = z_min,
+    cmax = z_max,
+    hovertemplate = paste(
+      "r_{kk}: %{x:.2f}<br>",
+      "ρ_{xk}: %{y:.2f}<br>",
+      "Final Adoption Rate: %{z:.2f}<extra></extra>"
+    )
+  )
+  
+  # add slider for dynamic alpha selection
+  fig2 <- fig2 %>%
+    layout(
+      title = paste('Predicted unpopular norm compliance in scale-free network from OLS model for α =', alpha_vals[1]),
+      scene = list(
+        xaxis = list(title = "r_{kk}"),
+        yaxis = list(title = "ρ_{kx}"),
+        zaxis = list(
+          range = c(z_min, z_max)
+        )
+      ),
+      sliders = list(
+        list(
+          active = 0, 
+          steps = lapply(seq_along(alpha_vals), function(i) {
+            list(
+              method = "update",
+              args = list(
+                list(
+                  z = list(surface_data_list[[i]])  
+                ),
+                list(
+                  title = paste('Predicted unpopular norm compliance in scale-free network from OLS model for α =', alpha_vals[i]) 
+                )
+              ),
+              label = as.character(alpha_vals[i]) 
+            )
+          }),
+          currentvalue = list(
+            prefix = "α: ",  
+            font = list(size = 16)
+          )
+        )
+      )
+    )
+  
+  list(fig1 = fig1, fig2 = fig2)
+}
+
+fwrapper <- function(data, 
+                     choice_rule, 
+                     influence, 
+                     kmin = NULL, 
+                     kmax = NULL,
+                     minority_props = c(0.05, 0.1, 0.15),
+                     fplot = fcreate_heatmap) {
+  
+  # Construct top annotation text
+  get_top_text <- function() {
+    base_text <- paste0(
+      ifelse(choice_rule == "deterministic", "deterministic", "stochastic"), 
+      " updating | ", influence, " influence"
+    )
+    if (identical(fplot, fcreate_heatmap)) {
+      if (!is.null(kmin)) base_text <- paste0(base_text, " | min. degree: ", kmin)
+      if (!is.null(kmax)) base_text <- paste0(base_text, " | max. degree: ", kmax)
+    }
+    return(base_text)
+  }
+  
+  # Function to call plot with correct args
+  call_plot <- function(mp) {
+    args <- list(
+      data = data,
+      choice_rule = choice_rule,
+      minority_prop = mp,
+      influence = influence
+    )
+    if (!is.null(kmin)) args$kmin <- kmin
+    if (identical(fplot, fcreate_heatmap) && !is.null(kmax)) args$kmax <- kmax
+    
+    do.call(fplot, args) + 
+      ggtitle(paste0("Proportion minorities: ", mp))
+  }
+  
+  # Single minority proportion
+  if (length(minority_props) == 1) {
+    p <- call_plot(minority_props)
+    return(annotate_figure(
+      p,
+      top = text_grob(get_top_text(), face = "bold", size = 14)
+    ))
+  }
+  
+  # Multiple proportions
+  plots <- lapply(minority_props, call_plot)
+  combined <- ggarrange(plotlist = plots, 
+                        ncol = length(minority_props), 
+                        common.legend = TRUE, 
+                        legend = "bottom")
+  
+  annotate_figure(combined,
+                  top = text_grob(get_top_text(), face = "bold", size = 14))
+}
+
 # function to generate a gif displaying the propagation of the norm through a (static) network
-fnetworkgif <- function(network, decision_history, rounds, fps = 2, output_dir = "./figures") {
+fnetworkgif <- function(network, decision_history, rounds, fps = 2, width = 6, height = 6, output_dir = "./figures") {
   
   # colors for choices
   choice_color <- c("0" = brewer.pal(3, "Set3")[1],  
@@ -746,7 +1114,7 @@ fnetworkgif <- function(network, decision_history, rounds, fps = 2, output_dir =
   
   # save each plot to individual files in the specified directory
   for (i in 1:length(pList)) {
-    ggsave(paste0(output_dir, "/plot_", i, ".png"), plot = pList[[i]], width = 6, height = 6)
+    ggsave(paste0(output_dir, "/plot_", i, ".png"), plot = pList[[i]], width = width, height = height)
   }
   
   # read saved images into a magick image object
@@ -758,7 +1126,7 @@ fnetworkgif <- function(network, decision_history, rounds, fps = 2, output_dir =
   img_list <- image_read(image_files)
   
   # create an animated gif
-  gif <- image_animate(img_list, fps = fps)
+  gif <- image_animate(img_list, fps = 2)
   
   # save the gif to a file
   gif_output_path <- paste0(output_dir, "/animation.gif")
@@ -768,4 +1136,47 @@ fnetworkgif <- function(network, decision_history, rounds, fps = 2, output_dir =
   file.remove(image_files)
   
   return(gif_output_path)
+}
+
+
+
+#source: https://bookdown.org/markhoff/social_network_analysis/the-small-world-problem-and-the-art-science-of-simulation.html
+
+simulate_caveman <- function(n = 25, clique_size = 5){
+  require(igraph)
+  # Groups are all the same size, so I check whether N is divisible by the size of groups
+  if ( ((n%/%clique_size) * clique_size) != n){
+    stop("n is not evenly divisible by clique_size")
+  }
+  
+  groups = n/clique_size # this determines the number of groups
+  
+  el <- data.frame(PersonA = 1:n, Group = NA) # I create a dataframe which has people and the groups they are in
+  # I treat it like a person to group edgelist
+  
+  group_vector = c()
+  for (i in 1:groups){
+    group_vector <- c(group_vector, rep(i, clique_size))
+  }  
+  
+  el$Group <- group_vector
+  
+  inc <- table(el) # I use the table function to turn the person to group edgelist into an incidence matrix
+  adj <- inc %*% t(inc) # And I use matrix multiplication with the transpose to turn the person to group incidence matrix
+  # into a person to person adjacency matrix
+  
+  diag(adj) <- 0 
+  
+  g <- graph.adjacency(adj, mode = "undirected") # I graph this matrix
+  
+  group_connect <- seq(from = 1, to = n, by = clique_size) # I determine the points of connection using a sequence funciton
+  
+  for( i in 1:(length(group_connect)-1)){
+    p1 <- group_connect[i] + 1
+    p2 <- group_connect[i+1]
+    g <- add.edges(g, c(p1,p2)) # And I connect the points of connection using add.edges
+  }
+  g <- add.edges(g, c(group_connect[1],(group_connect[groups]+1))) # finally I connect the ends of the structure so that it forms a circle
+  
+  return(g)    
 }
