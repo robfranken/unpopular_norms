@@ -135,9 +135,48 @@ Simulate norm evolution across N seeds for all target networks:
 
 ## Configuration model
 
+```{r, eval = FALSE}
+#first a test:
+
+#1 create a network
+# generate degree sequence
+degseq <- fdegseq(n = 50, 
+                  alpha = 2.5, 
+                  k_min = 2, 
+                  k_max = 25, 
+                  dist = "power-law", 
+                  seed = 123)
+
+# construct network from degree sequence
+network <- sample_degseq(degseq, method = "vl")
+
+# assign roles to nodes
+min_prop = .2
+V(network)$role <- sample(
+  c(
+    rep("trendsetter", floor(50 * min_prop)),
+    rep("conformist", 50 - floor(50 * min_prop))
+    )
+  )
+
+# simulate
+
+fabm(
+  network = network,
+  params = list(s=15, e=10, w=40, z=50, lambda1=5, lambda2=1.8),
+  max_rounds = 50,
+  mi_threshold = .49,
+  choice_rule = "deterministic"
+  )
+
+      
+   
+```
+
+
 ```{r, eval=FALSE}
 # number of seeds
-nIter = 50
+nIter = 3
 
 # set up parallel backend to increase efficiency
 ncores <- detectCores() - 1 
@@ -253,7 +292,7 @@ all_results <- foreach(file = files, .combine = bind_rows, .packages = c("tibble
   config_results <- readRDS(file)
   summaries <- lapply(config_results, function(res) {
     eq <- res$sim$equilibrium
-    
+    seg <- res$sim$segregation
     tibble(
       config_id = res$config_id,
       alpha = res$alpha,
@@ -262,7 +301,7 @@ all_results <- foreach(file = files, .combine = bind_rows, .packages = c("tibble
       actual_r = res$actual_r,
       target_rho = res$target_rho,
       actual_rho = res$actual_rho,
-       mi = res$mi,
+      mi = res$mi,
       influence = res$influence,
       choice_rule = res$choice_rule,
       minority_prop = res$minority_prop,
@@ -271,7 +310,10 @@ all_results <- foreach(file = files, .combine = bind_rows, .packages = c("tibble
       seed = res$seed,
       reached_equilibrium = eq$reached,
       rounds_to_equilibrium = eq$round,
-      final_adoption_rate = eq$prop_follow_trend
+      final_adoption_rate = eq$prop_follow_trend,
+      beh_assort = eq$segregation$r_behavior,
+      L1CC_share = eq$segregation$L1CC_share
+      
     )
   })
   
@@ -293,8 +335,10 @@ fsave(data, "sims_conf.Rda")
 ## Watts-Strogatz model
 
 ```{r, eval=FALSE}
+#if (!dir.exists("./sims2")) dir.create("./sims2")
+
 system.time({
-  foreach(i = 1:nrow(ws), .combine = 'c', .packages = c("igraph", "tidyverse")) %dopar% {
+  foreach(i = 1:10, .combine = 'c', .packages = c("igraph", "tidyverse")) %dopar% {
     
     cfg <- ws[i, ] # get configuration from full factorial
     results <- list()  # temporary storage for all iterations of this config
@@ -307,14 +351,6 @@ system.time({
         
         # construct network
         network <- sample_smallworld(dim = 1, size = cfg$group_size, nei = cfg$min_deg, p = cfg$p)
- 
-        network <- sample_smallworld(dim = 1, size = 100, nei = 3, p = .10)
-          V(network)$role <- sample(
-          c(
-            rep("trendsetter", floor(new_n * cfg$minority_prop)),
-            rep("conformist", new_n - floor(new_n * cfg$minority_prop))
-          )
-        )
         
         # remove isolates that may arise due to rewiring
         isolates <- which(degree(network)==0)
@@ -382,6 +418,7 @@ system.time({
             outcomes = sim$outcomes,
             equilibrium = sim$equilibrium
           )
+          
         )
       }, error = function(e) {
         message(sprintf("Iteration %d failed for config %d: %s", iter, i, e$message))
@@ -415,14 +452,16 @@ all_results <- foreach(file = files, .combine = bind_rows, .packages = c("tibble
       actual_r = res$actual_r,
       target_rho = res$target_rho,
       actual_rho = res$actual_rho,
-       mi = res$mi,
+      mi = res$mi,
       minority_prop = res$minority_prop,
       influence = res$influence,
       choice_rule = res$choice_rule,
       seed = res$seed,
       reached_equilibrium = eq$reached,
       rounds_to_equilibrium = eq$round,
-      final_adoption_rate = eq$prop_follow_trend
+      final_adoption_rate = eq$prop_follow_trend,
+      beh_assort = eq$segregation$r_behavior,
+      L1CC_share = eq$segregation$L1CC_share
     )
   })
   
@@ -650,6 +689,15 @@ fwrapper(data = data,
 ## {.unlisted .unnumbered}
 
 <br>
+
+explore clustering (auto-correlation) of norms in the network;
+that is, dyadic similarity (behavioral assortativity). but beyond that 'pocketing' (e.g., largest component size/share); or segregation at distance-1 and distance-k>1 or distance decay.
+
+```{r}
+#all_results$beh_assort
+#plot(all_results$beh_assort, all_results$p)
+```
+
 
 ---
 

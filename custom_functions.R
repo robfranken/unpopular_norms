@@ -46,7 +46,7 @@ fdesign <- function(df) {
 
 # visualize graph in the "multi-population"
 fplot_graph <- function(graph, main=NULL, layout_algo=NULL, 
-                        col1 = "#800080", col2 =  "#FFD700", legend=TRUE) {
+                        col1 = "blue", col2 =  "red", legend=TRUE) {
   plot(graph,
        main = main,
        layout = layout_algo,
@@ -400,28 +400,45 @@ fswap_rho <- function(network, target_rho, max_iter = 1e3, tol = 0.05, verbose =
   return(best_network)
 }
 
-fcalculate_majority_illusion <- function(network, threshold = 0.49) {
-  roles <- V(network)$role
+fcalculate_majority_illusion <- function(network) {
+  
+  roles   <- V(network)$role
   actions <- V(network)$action
   
-  #initialize counter for majority illusion
-  mi_count <- 0
+  props <- c()   # store neighborhood adoption proportions
   
-  #loop over conformists
   for (v in V(network)) {
-    if (roles[v] == "conformist") {
-      neighbors <- neighbors(network, v)
-      trend_neighbors <- sum(actions[neighbors] == 1)
-      prop_trend <- trend_neighbors / length(neighbors)
+    
+    if (roles[v] == "conformist") {   # majority nodes
       
-      if (prop_trend > threshold) { #under "weak influence", more than half of the neighborhood suffices; so set threshold at .5
-        mi_count <- mi_count + 1
-      }
+      nbrs <- neighbors(network, v)
+      trend_nbrs <- sum(actions[nbrs] == 1)
+      prop_trend <- trend_nbrs / length(nbrs)
+      
+      props <- c(props, prop_trend)
     }
   }
-  # return fraction of conformists who have majority illusion
-  return(mi_count / sum(roles == "conformist"))
+  
+  # return the average
+  return(mean(props))
 }
+
+#helper function to calculate the baseline "majority illusion":
+fbaseline_exposure <- function(network) {
+  roles <- V(network)$role
+  
+  props <- c()
+  
+  for (v in V(network)) {
+    if (roles[v] == "conformist") {
+      nbrs <- neighbors(network, v)
+      seed_nbrs <- sum(V(network)$role[nbrs] == "trendsetter")
+      props <- c(props, seed_nbrs / length(nbrs))
+    }
+  }
+  mean(props)
+}
+
 
 # function for our evolutionary model
 fabm <- function(network = network, # the generated network
@@ -531,7 +548,7 @@ fabm <- function(network = network, # the generated network
       # after all, actors don't observe others' roles, but only their choices,
       # based on which they can infer their role
       V(exposure_network)$action <- decision_history[decision_history$round == t - 1,]$choice
-      globMI[t] <- fcalculate_majority_illusion(exposure_network, threshold = mi_threshold)  
+      globMI[t] <- fcalculate_majority_illusion(exposure_network)  
     }
   }
   
@@ -563,7 +580,7 @@ fabm <- function(network = network, # the generated network
       scale_x_continuous(breaks = seq(1, max(plotdata$round), by = 1)) +
       labs(
         title = "Evolution of an unpopular norm",
-        subtitle = "`follow_trend` denotes the percentage of all agents that follow the trend.\n`majority_illusion` reflects the percentage of conformists whose neighbors meet or exceed the adoption threshold φ (i.e., 0.50),\nwith 'strong influence' referring to both meeting and exceeding the threshold, and 'weak influence' to exceeding it only.\nThe grey dashed line reflects the percentage of agents whose role is trendsetter. The purple circle (deterministic)\nor shaded purple region (probabilistic) indicates the equilibrium.",
+        subtitle = "`follow_trend` shows the percentage of all agents adopting the unpopular norm.\n`majority_illusion` shows the average proportion of neighbors adopting the unpopular norm among majority members.\nThe grey dashed line marks the percentage of agents in the minority group.\nThe black dotted line marks the baseline exposure: the average proportion of neighbors who are minorities, among majorities.\nThe purple circle (deterministic) or shaded region (probabilistic) marks the equilibrium.",
         x = "round",
         y = "% agents",
         color = "outcome"
@@ -578,8 +595,14 @@ fabm <- function(network = network, # the generated network
         linetype = "dashed",
         color = "darkgrey",
         size = 1
+      ) +
+      geom_hline(
+        yintercept = fbaseline_exposure(network),
+        linetype = "dotted",
+        color = "black",
+        size = 1
       )
-    
+
     # add a circle around the equilibrium state 'follow_trend' statistic
     # only for the deterministic model (true point equilibrium)
     if (!is.na(equilibrium_t) && choice_rule == "deterministic") {

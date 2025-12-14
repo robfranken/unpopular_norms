@@ -20,8 +20,12 @@ navbar:
       href: abm.html
     - icon: fa-microscope
       text: "Experiment"
-      href: experiment.html
-    - icon: 
+      menu:
+      - text: "Experiment #1 (Prolific)"
+        href: experiment.html
+      - text: "SRDA computer-lab"
+        href: demonstration_SRDA.html
+    
   right:
     - icon: fab fa-github
       href: https://github.com/robfranken/unpopular_norms

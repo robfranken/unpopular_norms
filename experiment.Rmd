@@ -80,7 +80,7 @@ rm(packages)
 
 # Experimental conditions
 
-## 1. scale-free network with central minorities
+## 1. heavy-tailed network with central minorities
 
 Let's take a likely-case for an unpopular norm, generate multiple networks of this target, and simulate the emergence of the norm following a deterministic and probabilistic choice model:
 
@@ -108,11 +108,11 @@ run_one_seed <- function(
 
   # --- network creation ---
   degseq <- fdegseq(
-    n      = 100, 
+    n      = 100,
     alpha  = alpha,
     k_min  = k_min,
     k_max  = k_max,
-    dist   = "power-law",
+    dist   = "log-normal", #use log-normal 
     seed   = seed_i
   )
 
@@ -122,6 +122,7 @@ run_one_seed <- function(
     c(rep("trendsetter", 10), rep("conformist", 90))
   )
   
+
   rewired_network <- frewire_r(network, r, verbose = FALSE, max_iter = 1e5)
   final_network   <- fswap_rho(rewired_network, rho, verbose = FALSE, max_iter = 1e4)
   
@@ -142,7 +143,8 @@ run_one_seed <- function(
     components    = components(final_network)$no
   )
   
-  fplot_graph(final_network) 
+  fplot_graph(final_network, layout = layout_with_fr(final_network)) 
+  
   
   # --- initial actions ---
   V(final_network)$action <- ifelse(V(final_network)$role == "trendsetter", 1, 0)
@@ -211,10 +213,23 @@ knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
 ```
 
 ```{r}
-test <- run_one_seed(2, k_min = 2, k_max = 30, alpha = 2.4, rho = 0.4, r = -0.1, return_network = TRUE)
-seed = seed + 1
+test <- run_one_seed(23, k_min = 2, k_max = 80, alpha = 2.4, rho = 0.4, r = -0.1, return_network = TRUE)
+seed = seed + 22
+#22
 
+#23, 80 #typical s-curve (traction among susceptibles... spraeding in the middle; targeting susceptibles not direclty exposed.)
+```
+
+
+```{r}
 test$stats
+table(degree(test$network))
+
+#identify trendsetters
+ids <- which(V(test$network)$role == "trendsetter")
+
+#check their centrality
+sort(as.numeric(cbind(degree(test$network), V(test$network)$role)[ids]))
 ```
 
 ```{r, out.width="60%"}
@@ -223,7 +238,7 @@ knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
 
 ```{r, eval = FALSE}
 # use this as the network structure for an otree session:
-cbind(degree(test$network),V(test$network)$role)
+#cbind(degree(test$network),V(test$network)$role)
 
 # convert to adjacency matrix
 adj_matrix <- as.matrix(as_adjacency_matrix(test$network))
@@ -234,12 +249,12 @@ role_vector <- ifelse(V(test$network)$role == "trendsetter",1,0)
 net <- list(adj_matrix = adj_matrix, role_vector = role_vector)
 # save the list as a JSON file
 write_json(net, "network_test_n100.json")
-
 ```
 
 
 ```{r}
 test <- run_one_seed(3, k_min = 2, k_max = 20, alpha = 2.4, rho = 0.4, r = -0.1)
+seed = seed - 21
 seed = seed + 1
 ```
 
@@ -350,12 +365,10 @@ seed = seed + 1
 knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
 ```
 
-
-
 ## 2. small-worlds
 
 
-```{r, eval = FALSE, echo=TRUE, fig.show='hold', fig.keep='all', message=FALSE, fig.height=5}
+```{r, echo=TRUE, fig.show='hold', fig.keep='all', message=FALSE, fig.height=5}
 run_one_sw <- function(
   i,
   base_seed = 1253281,
@@ -365,7 +378,11 @@ run_one_sw <- function(
   clique_size = 5,
   pmin = 0.1,
   
-  params = list(s = 15, e = 10, w = 40, z = 50, lambda1 = 5, lambda2 = 1.8)
+  params = list(s = 15, e = 10, w = 40, z = 50, lambda1 = 5, lambda2 = 1.8),
+  
+  # retrieve network
+  return_network = FALSE
+  
 ) {
   # derived seed for this run
   seed_i <- base_seed + i
@@ -452,17 +469,61 @@ run_one_sw <- function(
     print(sim_prob$plot)
   }
   
-  list(
-    #run   = i,
-    #seed  = seed_i,
-    segregation_det = sim_det$equilibrium$segregation,
+  
+  result <- list(
+    segregation_det  = sim_det$equilibrium$segregation,
     segregation_prob = sim_prob$equilibrium$segregation,
-    stats = stats
+    stats            = stats
   )
+  
+  if (return_network) {
+    result$network <- final_network
+  }
+  
+  result
 }
 ```
 
-```{r, eval =FALSE}
+
+```{r}
+#random
+test <- run_one_sw(i=15, beta=1, pmin=.1, return_network = TRUE )
+
+base_seed = 1253281
+seed = base_seed + 15
+```
+
+
+```{r, out.width="60%"}
+test$stats
+table(degree(test$network))
+
+#identify trendsetters
+ids <- which(V(test$network)$role == "trendsetter")
+
+#check their centrality
+sort(as.numeric(cbind(degree(test$network), V(test$network)$role)[ids]))
+
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+``` 
+
+
+```{r, eval = FALSE}
+# use this as the network structure for an otree session:
+#cbind(degree(test$network),V(test$network)$role)
+
+# convert to adjacency matrix
+adj_matrix <- as.matrix(as_adjacency_matrix(test$network))
+
+#get roles
+role_vector <- ifelse(V(test$network)$role == "trendsetter",1,0)
+# create a list to store the network data
+net <- list(adj_matrix = adj_matrix, role_vector = role_vector)
+# save the list as a JSON file
+write_json(net, "network_test_n100_random.json")
+```
+
+```{r, eval = FALSE}
 test <- run_one_sw(i=15, model = "caveman", clique_size = 5, pmin = .15)
 seed = seed + 1
 
