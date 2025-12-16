@@ -218,6 +218,36 @@ seed = seed + 22
 #22
 
 #23, 80 #typical s-curve (traction among susceptibles... spraeding in the middle; targeting susceptibles not direclty exposed.)
+
+#let's check the distribution of distances to 'trendsetters', among 'conformists'
+g <- test$network
+trend <- which(V(g)$role == "trendsetter")
+conf  <- which(V(g)$role == "conformist")
+
+# distances: rows = sources (trendsetters), cols = all vertices
+D <- distances(g, v = trend, to = V(g), mode = "all")
+Dc <- D[, conf] #keep just conformists
+
+# calculate (a) the distance to the nearest trendsetter and (b) the average distance to trendsetters, across conformists
+dists <- data.frame(
+  shortest = apply(Dc, 2, min),
+  average = apply(Dc, 2, function(x) mean(x[is.finite(x)]))
+)
+dists_long <- pivot_longer(
+  dists,
+  cols = c(shortest, average),
+  names_to = "type",
+  values_to = "distance_to_seed"
+)
+
+#plot the distribution
+ggplot(dists_long, aes(x = distance_to_seed, fill = type)) +
+  geom_histogram(
+    bins = 20,
+    alpha = 0.5,
+    position = "identity"
+  ) +
+  theme_minimal()
 ```
 
 
@@ -491,6 +521,36 @@ test <- run_one_sw(i=15, beta=1, pmin=.1, return_network = TRUE )
 
 base_seed = 1253281
 seed = base_seed + 15
+
+#let's check the distribution of distances to 'trendsetters', among 'conformists'
+g <- test$network
+trend <- which(V(g)$role == "trendsetter")
+conf  <- which(V(g)$role == "conformist")
+
+# distances: rows = sources (trendsetters), cols = all vertices
+D <- distances(g, v = trend, to = V(g), mode = "all")
+Dc <- D[, conf] #keep just conformists
+
+# calculate (a) the distance to the nearest trendsetter and (b) the average distance to trendsetters, across conformists
+dists <- data.frame(
+  shortest = apply(Dc, 2, min),
+  average = apply(Dc, 2, function(x) mean(x[is.finite(x)]))
+)
+dists_long <- pivot_longer(
+  dists,
+  cols = c(shortest, average),
+  names_to = "type",
+  values_to = "distance_to_seed"
+)
+
+#plot the distribution
+ggplot(dists_long, aes(x = distance_to_seed, fill = type)) +
+  geom_histogram(
+    bins = 20,
+    alpha = 0.5,
+    position = "identity"
+  ) +
+  theme_minimal()
 ```
 
 
@@ -523,10 +583,10 @@ net <- list(adj_matrix = adj_matrix, role_vector = role_vector)
 write_json(net, "network_test_n100_random.json")
 ```
 
-```{r, eval = FALSE}
-test <- run_one_sw(i=15, model = "caveman", clique_size = 5, pmin = .15)
+```{r}
+test <- run_one_sw(i=15, model = "caveman", clique_size = 5, pmin = .15, return_network = TRUE)
 seed = seed + 1
 
-knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+#knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
 ```
 

@@ -84,7 +84,7 @@ rm(packages)
 # pick one configuration that likely leads to an unpopular norm, and explore multiple 'seeds':
 run_one_seed <- function(
   i,
-  base_seed = 1253281,
+  base_seed = 12532812,
   params = list(s = 15, e = 10, w = 40, z = 50, lambda1 = 5, lambda2 = 1.8),
   
   # tweak network
@@ -197,7 +197,7 @@ run_one_seed <- function(
 #and one "random" network
 run_one_sw <- function(
   i,
-  base_seed = 1253281,
+  base_seed = 12532812,
   model = "watts-strogatz",
   beta = 0,
   nei = 3,
@@ -326,7 +326,7 @@ cbind(degree(test$network),V(test$network)$role)
 
 
 ```{r, out.width="60%"}
-base = 1253281
+base = 12532812
 seed = base + 38
 knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
 ``` 
@@ -360,7 +360,7 @@ cbind(degree(test$network),V(test$network)$role)
 
 
 ```{r, out.width="60%"}
-base_seed = 1253281
+base_seed = 12532812
 seed = base_seed + 513
 
 knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))

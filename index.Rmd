@@ -45,7 +45,7 @@ Last compiled on `r format(Sys.time(), '%d-%m-%Y')`
 ----
 
 
-This website can be used to replicate the agent-based model of @Franken2025. It contains R code. All scripts can be found on [Github](https://github.com/robfranken/unpopular_norms).
+This is a companion website to the paper of @Franken2025. It contains R code. All scripts can be found on [Github](https://github.com/robfranken/unpopular_norms).
 
 Use the top menu to navigate through the sections.
 

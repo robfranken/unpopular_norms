@@ -21,6 +21,8 @@ navbar:
     - icon: fa-microscope
       text: "Experiment"
       menu:
+      - text: "Test with n=10"
+        href: test_n10.html
       - text: "Experiment #1 (Prolific)"
         href: experiment.html
       - text: "SRDA computer-lab"

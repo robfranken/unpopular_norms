@@ -1203,3 +1203,6 @@ simulate_caveman <- function(n = 25, clique_size = 5){
   
   return(g)    
 }
+
+
+
