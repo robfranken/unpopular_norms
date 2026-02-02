@@ -70,7 +70,7 @@ source("./custom_functions.R")
 
 ```{r, packages}
 packages = c("tidyverse", "igraph", "ggplot2", "parallel", "doParallel", "foreach", "ggh4x", "ggpubr", "plotly", "RColorBrewer", "grid", "gridExtra", "patchwork", "ggplotify", "ggraph", "gganimate", "RColorBrewer",
-    "ggtext", "magick", "jsonlite")
+    "ggtext", "magick", "jsonlite", "lubridate", "ggtext")
 
 invisible(fpackage.check(packages))
 rm(packages)
@@ -472,4 +472,224 @@ write_json(net, "network_test_n50_random.json")
 ```
 
 
+---
 
+# import data
+
+```{r}
+test <- read.csv("./rawdata/all_apps_wide_2026-02-02.csv")
+times <- read.csv("./rawdata/PageTimes-2026-02-02.csv")
+```
+
+---
+
+# pilot results
+
+## arrival from Prolific
+
+```{r}
+#subset experimental session
+test <- test[test$session.code == "hwkqjhm0",]
+times <- times[times$session_code == "hwkqjhm0",]
+
+test <- test %>%
+  transmute(
+    participant_id = participant.code,
+    participant_label = participant.label,
+    id_in_session  = participant.id_in_session,
+    consent_given = consent.1.player.consent,
+    consent_timestamp = consent.1.player.consent_timestamp,
+    role = participant.role,
+    is_dropout = participant.is_dropout,
+    dropout_app = participant._current_app_name,
+    comprehension_retries = comprehension.1.player.comprehension_retries,
+    passed_comprehension = !participant._current_app_name %in% c("consent", "comprehension"),
+    choice = unpop.1.player.choice
+  )
+test <- test[!is.na(test$consent_given),]
+test$bot <- ifelse(test$participant_label == "", 1, 0)
+
+test <- test %>%
+  mutate(
+    consent_timestamp = ymd_hms(consent_timestamp),
+    bot = factor(bot, levels = c(0, 1), labels = c("Prolific participant", "Bot"))
+  ) %>%
+  arrange(consent_timestamp)
+
+test <- test %>%
+  mutate(arrival_order = row_number())
+
+ggplot(test, aes(x = consent_timestamp, y = arrival_order)) +
+  geom_point(aes(color = role, shape = bot), size = 3, alpha = 0.5) +
+  scale_shape_manual(values = c(16, 2)) +             
+  scale_color_manual(values = c("blue", "red")) +   
+  labs(
+    x = "Arrival time",
+    y = "Arrival order",
+    color = "Role",
+    shape = "Type",
+    title = "Participant arrivals from Prolific over time"
+  ) +
+  theme_minimal()
+```
+
+## progression through the experiment
+
+```{r, fig.height=6}
+times <- times %>%
+  mutate(
+    timestamp = as_datetime(epoch_time_completed)
+  )
+
+arrival_times <- times %>%
+  group_by(participant_id_in_session) %>%
+  summarize(arrival_time = min(timestamp), .groups = "drop")
+
+times <- times %>%
+  left_join(arrival_times, by = "participant_id_in_session") %>%
+  mutate(participant_ordered = factor(participant_id_in_session, 
+                                      levels = arrival_times %>% arrange(arrival_time) %>% pull(participant_id_in_session)))
+
+times_roles <- times %>%
+  left_join(
+    test %>% select(id_in_session, role),
+    by = c("participant_id_in_session" = "id_in_session")
+  )
+
+page_levels <- unique(times$page_name)
+
+times_roles <- times_roles %>%
+  mutate(page_name = factor(page_name, levels = page_levels))
+
+custom_colors <- c(
+  "InitializeParticipant" = "#c6dbef", 
+  "ConsentPage" = "#9ecae1",
+  "IntroductionPage" = "#6baed6",
+  "ComprehensionPage" = "#3182bd",
+  "NetworkFormationWaitPage" = "#ffcc99",
+  "DecisionPage" = "#ff9966",
+  "ResultsWaitPage" = "#ff6666",
+  "ResultsPage" = "#cc0033",
+  "FinalGameResults" = "#660000"       
+)
+
+# colored y-axis labels
+colored_labels <- sapply(page_levels, function(stage) {
+  paste0("<span style='color:", custom_colors[stage], "'>", stage, "</span>")
+}, USE.NAMES = FALSE)
+
+
+#times2 <- times[times$participant_id_in_session %in% c(34,80),]
+
+ggplot(times, aes(x = timestamp, y = participant_ordered, color = page_name)) +
+  geom_line(aes(group = participant_id_in_session), size = 1) +
+  geom_point(size = 2) +
+  scale_color_manual(values = custom_colors) +
+  labs(
+    x = "Time",
+    y = "Participant (ordered by arrival)",
+    color = "Stage/Page",
+    title = "Participant progression through experiment stages (by arrival)"
+  ) +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 6))
+
+
+``` 
+
+
+```{r, fig.width=8}
+#by role
+times_roles <- times %>%
+  left_join(
+    test %>% select(id_in_session, role),
+    by = c("participant_id_in_session" = "id_in_session")
+  )
+
+times_roles <- times_roles %>%
+  mutate(page_name = factor(page_name, levels = page_levels))
+
+colored_labels <- sapply(page_levels, function(stage) {
+  paste0("<span style='color:", custom_colors[stage], "'>", stage, "</span>")
+}, USE.NAMES = FALSE)
+
+times_roles <- times_roles[!is.na(times_roles$role),]
+
+# Gantt-style plot faceted by participant role
+ggplot(times_roles, aes(x = timestamp, y = page_name, group = participant_ordered, color = page_name)) +
+  geom_step(direction = "hv", size = 0.5) +
+  geom_point(size = 2) +
+  scale_color_manual(values = custom_colors) +
+  scale_y_discrete(labels = colored_labels) +
+  labs(
+    x = "Time",
+    y = "Experiment Stage",
+    color = "Stage/Page",
+    title = "Participant progression through experiment stages by role"
+  ) +
+  facet_wrap(~role, scales = "free_y", ncol=1) +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_markdown(size = 10),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none"
+  )
+``` 
+
+
+## comprehension
+
+Retries
+
+```{r}
+table(test$comprehension_retries, test$role)
+
+#time per comprehension task
+times2 <- times %>%
+  filter(page_name == "ComprehensionPage") %>%
+  mutate(time_spent =  as.numeric(timestamp - arrival_time))
+
+#exclude bots
+bots <- test$id_in_session[test$bot=="Bot"]
+times3 <- times2[!times2$participant_id_in_session %in% bots, ]
+
+comprehension_data <- times3 %>%
+  left_join(
+    test %>% select(id_in_session, comprehension_retries, role),
+    by = c("participant_id_in_session" = "id_in_session")
+  )
+
+ggplot(comprehension_data, aes(x = time_spent, y = factor(comprehension_retries), color = role)) +
+  geom_jitter(width = 0, height = 0.2, size = 2, alpha = 0.7) + 
+    scale_color_manual(values = c("blue", "red")) +
+  labs(
+    x = "Time spent on comprehension (seconds)",
+    y = "Number of retries",
+    color = "Role",
+    title = "Time in seconds"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+## choice behavior 
+
+```{r}
+
+# exclude bots and missing choices
+test2 <- test %>%
+  filter(bot != "Bot") %>%
+  select(id_in_session, role, choice, comprehension_retries) %>%
+  filter(!is.na(choice))
+
+# scatter plot: choice vs role, size = retries
+ggplot(test2, aes(x = role, y = as.numeric(choice), size = comprehension_retries)) +
+  geom_jitter(width = 0.2, height = 0.05, alpha = 0.7, color = "steelblue") +  # jitter to avoid overlap
+  scale_size_continuous(range = c(2, 8)) +
+  labs(
+    x = "Participant role",
+    y = "Choice (1=blue, 0=red)",
+    size = "Number of retries",
+    title = "Participant choice by role and comprehension question retries"
+  ) +
+  theme_minimal(base_size = 14)
+```
