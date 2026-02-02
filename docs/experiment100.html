@@ -362,7 +362,10 @@ div.tocify {
       <a href="test_n10.html">Test with n=10</a>
     </li>
     <li>
-      <a href="experiment.html">Experiment #1 (Prolific)</a>
+      <a href="experiment100.html">Test with n=100</a>
+    </li>
+    <li>
+      <a href="experiment50.html">Test with n=50</a>
     </li>
     <li>
       <a href="demonstration_SRDA.html">SRDA computer-lab</a>
@@ -397,7 +400,7 @@ div.tocify {
 
 
 <h1 class="title toc-ignore">Experiment</h1>
-<h4 class="date">Last compiled on 16-12-2025</h4>
+<h4 class="date">Last compiled on 02-02-2026</h4>
 
 </div>
 
@@ -571,13 +574,13 @@ run_one_seed &lt;- function(
   result
 }</code></pre>
 <pre class="r test"><code>test &lt;- run_one_seed(1, k_min = 2, k_max = 20, alpha = 2.4, rho = 0.4, r = -0.1, return_network = TRUE)</code></pre>
-<p><img src="experiment_files/figure-html/unnamed-chunk-2-1.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-2-2.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-2-3.png" width="672" /></p>
+<p><img src="experiment100_files/figure-html/unnamed-chunk-2-1.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-2-2.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-2-3.png" width="672" /></p>
 <pre class="r test"><code>base = 1253281
 seed = base + 1</code></pre>
 <pre class="r test"><code>knitr::include_graphics(paste0(&quot;./figures/animation_network_&quot;, seed, &quot;.gif&quot;))</code></pre>
 <p><img src="figures/animation_network_1253282.gif" width="60%" /></p>
 <pre class="r test"><code>test &lt;- run_one_seed(23, k_min = 2, k_max = 80, alpha = 2.4, rho = 0.4, r = -0.1, return_network = TRUE)</code></pre>
-<p><img src="experiment_files/figure-html/unnamed-chunk-4-1.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-4-2.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-4-3.png" width="672" /></p>
+<p><img src="experiment100_files/figure-html/unnamed-chunk-4-1.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-4-2.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-4-3.png" width="672" /></p>
 <pre class="r test"><code>seed = seed + 22
 # 22
 
@@ -601,7 +604,7 @@ dists_long &lt;- pivot_longer(dists, cols = c(shortest, average), names_to = &qu
 # plot the distribution
 ggplot(dists_long, aes(x = distance_to_seed, fill = type)) + geom_histogram(bins = 20, alpha = 0.5, position = &quot;identity&quot;) +
     theme_minimal()</code></pre>
-<p><img src="experiment_files/figure-html/unnamed-chunk-4-4.png" width="672" /></p>
+<p><img src="experiment100_files/figure-html/unnamed-chunk-4-4.png" width="672" /></p>
 <pre class="r test"><code>test$stats</code></pre>
 <pre class="test3"><code>#&gt; $run
 #&gt; [1] 23
@@ -666,64 +669,64 @@ net &lt;- list(adj_matrix = adj_matrix, role_vector = role_vector)
 # save the list as a JSON file
 write_json(net, &quot;network_test_n100.json&quot;)</code></pre>
 <pre class="r test"><code>test &lt;- run_one_seed(3, k_min = 2, k_max = 20, alpha = 2.4, rho = 0.4, r = -0.1)</code></pre>
-<p><img src="experiment_files/figure-html/unnamed-chunk-8-1.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-8-2.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-8-3.png" width="672" /></p>
+<p><img src="experiment100_files/figure-html/unnamed-chunk-8-1.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-8-2.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-8-3.png" width="672" /></p>
 <pre class="r test"><code>seed = seed - 21
 seed = seed + 1</code></pre>
 <pre class="r test"><code>knitr::include_graphics(paste0(&quot;./figures/animation_network_&quot;, seed, &quot;.gif&quot;))</code></pre>
 <p><img src="figures/animation_network_1253284.gif" width="60%" /></p>
 <pre class="r test"><code>test &lt;- run_one_seed(4, k_min = 2, k_max = 20, alpha = 2.4, rho = 0.4, r = -0.1)</code></pre>
-<p><img src="experiment_files/figure-html/unnamed-chunk-10-1.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-10-2.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-10-3.png" width="672" /></p>
+<p><img src="experiment100_files/figure-html/unnamed-chunk-10-1.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-10-2.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-10-3.png" width="672" /></p>
 <pre class="r test"><code>seed = seed + 1</code></pre>
 <pre class="r test"><code>knitr::include_graphics(paste0(&quot;./figures/animation_network_&quot;, seed, &quot;.gif&quot;))</code></pre>
 <p><img src="figures/animation_network_1253285.gif" width="60%" /></p>
 <pre class="r test"><code>test &lt;- run_one_seed(5, k_min = 2, k_max = 20, alpha = 2.4, rho = 0.4, r = -0.1)</code></pre>
-<p><img src="experiment_files/figure-html/unnamed-chunk-12-1.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-12-2.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-12-3.png" width="672" /></p>
+<p><img src="experiment100_files/figure-html/unnamed-chunk-12-1.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-12-2.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-12-3.png" width="672" /></p>
 <pre class="r test"><code>seed = seed + 1</code></pre>
 <pre class="r test"><code>knitr::include_graphics(paste0(&quot;./figures/animation_network_&quot;, seed, &quot;.gif&quot;))</code></pre>
 <p><img src="figures/animation_network_1253286.gif" width="60%" /></p>
 <pre class="r test"><code>test &lt;- run_one_seed(6, k_min = 2, k_max = 20, alpha = 2.4, rho = 0.4, r = -0.1)</code></pre>
-<p><img src="experiment_files/figure-html/unnamed-chunk-14-1.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-14-2.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-14-3.png" width="672" /></p>
+<p><img src="experiment100_files/figure-html/unnamed-chunk-14-1.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-14-2.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-14-3.png" width="672" /></p>
 <pre class="r test"><code>seed = seed + 1</code></pre>
 <pre class="r test"><code>knitr::include_graphics(paste0(&quot;./figures/animation_network_&quot;, seed, &quot;.gif&quot;))</code></pre>
 <p><img src="figures/animation_network_1253287.gif" width="60%" /></p>
 <pre class="r test"><code>test &lt;- run_one_seed(7, k_min = 2, k_max = 20, alpha = 2.4, rho = 0.4, r = -0.1)</code></pre>
-<p><img src="experiment_files/figure-html/unnamed-chunk-16-1.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-16-2.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-16-3.png" width="672" /></p>
+<p><img src="experiment100_files/figure-html/unnamed-chunk-16-1.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-16-2.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-16-3.png" width="672" /></p>
 <pre class="r test"><code>seed = seed + 1</code></pre>
 <pre class="r test"><code>knitr::include_graphics(paste0(&quot;./figures/animation_network_&quot;, seed, &quot;.gif&quot;))</code></pre>
 <p><img src="figures/animation_network_1253288.gif" width="60%" /></p>
 <p>Increase the density:</p>
 <pre class="r test"><code>test &lt;- run_one_seed(8, k_min = 4, k_max = 99, alpha = 2.1, rho = 0.5, r = -0.4)</code></pre>
-<p><img src="experiment_files/figure-html/unnamed-chunk-18-1.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-18-2.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-18-3.png" width="672" /></p>
+<p><img src="experiment100_files/figure-html/unnamed-chunk-18-1.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-18-2.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-18-3.png" width="672" /></p>
 <pre class="r test"><code>seed = seed + 1</code></pre>
 <pre class="r test"><code>knitr::include_graphics(paste0(&quot;./figures/animation_network_&quot;, seed, &quot;.gif&quot;))</code></pre>
 <p><img src="figures/animation_network_1253289.gif" width="60%" /></p>
 <pre class="r test"><code>test &lt;- run_one_seed(9, k_min = 4, k_max = 99, alpha = 2.1, rho = 0.5, r = -0.4)</code></pre>
-<p><img src="experiment_files/figure-html/unnamed-chunk-20-1.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-20-2.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-20-3.png" width="672" /></p>
+<p><img src="experiment100_files/figure-html/unnamed-chunk-20-1.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-20-2.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-20-3.png" width="672" /></p>
 <pre class="r test"><code>seed = seed + 1</code></pre>
 <pre class="r test"><code>knitr::include_graphics(paste0(&quot;./figures/animation_network_&quot;, seed, &quot;.gif&quot;))</code></pre>
 <p><img src="figures/animation_network_1253290.gif" width="60%" /></p>
 <pre class="r test"><code>test &lt;- run_one_seed(10, k_min = 4, k_max = 99, alpha = 2.1, rho = 0.5, r = -0.4)</code></pre>
-<p><img src="experiment_files/figure-html/unnamed-chunk-22-1.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-22-2.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-22-3.png" width="672" /></p>
+<p><img src="experiment100_files/figure-html/unnamed-chunk-22-1.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-22-2.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-22-3.png" width="672" /></p>
 <pre class="r test"><code>seed = seed + 1</code></pre>
 <pre class="r test"><code>knitr::include_graphics(paste0(&quot;./figures/animation_network_&quot;, seed, &quot;.gif&quot;))</code></pre>
 <p><img src="figures/animation_network_1253291.gif" width="60%" /></p>
 <pre class="r test"><code>test &lt;- run_one_seed(11, k_min = 4, k_max = 99, alpha = 2.1, rho = 0.5, r = -0.4)</code></pre>
-<p><img src="experiment_files/figure-html/unnamed-chunk-24-1.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-24-2.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-24-3.png" width="672" /></p>
+<p><img src="experiment100_files/figure-html/unnamed-chunk-24-1.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-24-2.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-24-3.png" width="672" /></p>
 <pre class="r test"><code>seed = seed + 1</code></pre>
 <pre class="r test"><code>knitr::include_graphics(paste0(&quot;./figures/animation_network_&quot;, seed, &quot;.gif&quot;))</code></pre>
 <p><img src="figures/animation_network_1253292.gif" width="60%" /></p>
 <pre class="r test"><code>test &lt;- run_one_seed(12, k_min = 4, k_max = 99, alpha = 2.1, rho = 0.5, r = -0.4)</code></pre>
-<p><img src="experiment_files/figure-html/unnamed-chunk-26-1.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-26-2.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-26-3.png" width="672" /></p>
+<p><img src="experiment100_files/figure-html/unnamed-chunk-26-1.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-26-2.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-26-3.png" width="672" /></p>
 <pre class="r test"><code>seed = seed + 1</code></pre>
 <pre class="r test"><code>knitr::include_graphics(paste0(&quot;./figures/animation_network_&quot;, seed, &quot;.gif&quot;))</code></pre>
 <p><img src="figures/animation_network_1253293.gif" width="60%" /></p>
 <pre class="r test"><code>test &lt;- run_one_seed(13, k_min = 4, k_max = 99, alpha = 2.1, rho = 0.5, r = -0.4)</code></pre>
-<p><img src="experiment_files/figure-html/unnamed-chunk-28-1.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-28-2.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-28-3.png" width="672" /></p>
+<p><img src="experiment100_files/figure-html/unnamed-chunk-28-1.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-28-2.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-28-3.png" width="672" /></p>
 <pre class="r test"><code>seed = seed + 1</code></pre>
 <pre class="r test"><code>knitr::include_graphics(paste0(&quot;./figures/animation_network_&quot;, seed, &quot;.gif&quot;))</code></pre>
 <p><img src="figures/animation_network_1253294.gif" width="60%" /></p>
 <pre class="r test"><code>test &lt;- run_one_seed(14, k_min = 4, k_max = 99, alpha = 2.1, rho = 0.5, r = -0.4)</code></pre>
-<p><img src="experiment_files/figure-html/unnamed-chunk-30-1.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-30-2.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-30-3.png" width="672" /></p>
+<p><img src="experiment100_files/figure-html/unnamed-chunk-30-1.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-30-2.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-30-3.png" width="672" /></p>
 <pre class="r test"><code>seed = seed + 1</code></pre>
 <pre class="r test"><code>knitr::include_graphics(paste0(&quot;./figures/animation_network_&quot;, seed, &quot;.gif&quot;))</code></pre>
 <p><img src="figures/animation_network_1253295.gif" width="60%" /></p>
@@ -845,7 +848,7 @@ seed = seed + 1</code></pre>
 }</code></pre>
 <pre class="r test"><code># random
 test &lt;- run_one_sw(i = 15, beta = 1, pmin = 0.1, return_network = TRUE)</code></pre>
-<p><img src="experiment_files/figure-html/unnamed-chunk-33-1.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-33-2.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-33-3.png" width="672" /></p>
+<p><img src="experiment100_files/figure-html/unnamed-chunk-33-1.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-33-2.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-33-3.png" width="672" /></p>
 <pre class="r test"><code>base_seed = 1253281
 seed = base_seed + 15
 
@@ -866,7 +869,7 @@ dists_long &lt;- pivot_longer(dists, cols = c(shortest, average), names_to = &qu
 # plot the distribution
 ggplot(dists_long, aes(x = distance_to_seed, fill = type)) + geom_histogram(bins = 20, alpha = 0.5, position = &quot;identity&quot;) +
     theme_minimal()</code></pre>
-<p><img src="experiment_files/figure-html/unnamed-chunk-33-4.png" width="672" /></p>
+<p><img src="experiment100_files/figure-html/unnamed-chunk-33-4.png" width="672" /></p>
 <pre class="r test"><code>test$stats</code></pre>
 <pre class="test3"><code>#&gt; $run
 #&gt; [1] 15
@@ -931,7 +934,7 @@ net &lt;- list(adj_matrix = adj_matrix, role_vector = role_vector)
 # save the list as a JSON file
 write_json(net, &quot;network_test_n100_random.json&quot;)</code></pre>
 <pre class="r test"><code>test &lt;- run_one_sw(i = 15, model = &quot;caveman&quot;, clique_size = 5, pmin = 0.15, return_network = TRUE)</code></pre>
-<p><img src="experiment_files/figure-html/unnamed-chunk-36-1.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-36-2.png" width="672" /><img src="experiment_files/figure-html/unnamed-chunk-36-3.png" width="672" /></p>
+<p><img src="experiment100_files/figure-html/unnamed-chunk-36-1.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-36-2.png" width="672" /><img src="experiment100_files/figure-html/unnamed-chunk-36-3.png" width="672" /></p>
 <pre class="r test"><code>seed = seed + 1
 
 # knitr::include_graphics(paste0(&#39;./figures/animation_network_&#39;, seed ,&#39;.gif&#39;))</code></pre>
@@ -994,7 +997,7 @@ $(document).ready(function () {
 <!-- code folding -->
 <script>
 $(document).ready(function () {
-  window.initializeSourceEmbed("experiment.Rmd");
+  window.initializeSourceEmbed("experiment100.Rmd");
   window.initializeCodeFolding("show" === "show");
 });
 </script>

@@ -1,0 +1,475 @@
+---
+title: "Experiment"
+bibliography: references.bib
+link-citations: true
+date: "Last compiled on `r format(Sys.time(), '%d-%m-%Y')`"
+output: 
+  html_document:
+    self_contained: true
+    css: tweaks.css
+    toc: true
+    toc_float: true
+    number_sections: true
+    toc_depth: 4
+    code_folding: show
+    code_download: yes
+---
+
+```{r, globalsettings, echo=FALSE, warning=FALSE, results='hide', message=FALSE}
+library(knitr)
+library(tidyverse)
+knitr::opts_chunk$set(echo = TRUE)
+opts_chunk$set(tidy.opts=list(width.cutoff=100),tidy=TRUE, warning = FALSE, message = FALSE,comment = "#>", cache=TRUE, class.source=c("test"), class.output=c("test3"))
+options(width = 100)
+rgl::setupKnitr()
+
+colorize <- function(x, color) {sprintf("<span style='color: %s;'>%s</span>", color, x) }
+```
+
+```{r klippy, echo=FALSE, include=TRUE}
+klippy::klippy(position = c('top', 'right'))
+#klippy::klippy(color = 'darkred')
+#klippy::klippy(tooltip_message = 'Click to copy', tooltip_success = 'Done')
+```
+
+---
+
+# Getting started
+
+To copy the code, click the button in the upper right corner of the code-chunks.
+
+## clean up
+
+```{r, clean_up, results='hide'}
+rm(list=ls())
+gc()
+```
+
+<br>
+
+## custom functions
+
+We defined a number custom functions, at `r xfun::embed_file("./custom_functions.R")`.
+
+```{r, custom_functions}
+source("./custom_functions.R")
+```
+
+<br>
+
+## necessary packages
+
+- `tidyverse`: data wrangling
+- `igraph`: generate and visualize graphs
+- `parallel`: parallel computing to speed up simulation
+- `foreach`: looping in parallel
+- `doParallel`: parallel backend for `foreach`
+- `ggplot2`: data visualization
+- `ggh4x`: hacks for `ggplot2`
+- `ggpubr`: make visualizations publication-ready
+
+```{r, packages}
+packages = c("tidyverse", "igraph", "ggplot2", "parallel", "doParallel", "foreach", "ggh4x", "ggpubr", "plotly", "RColorBrewer", "grid", "gridExtra", "patchwork", "ggplotify", "ggraph", "gganimate", "RColorBrewer",
+    "ggtext", "magick", "jsonlite")
+
+invisible(fpackage.check(packages))
+rm(packages)
+```
+
+---
+
+# Experimental conditions
+
+## 1. heavy-tailed network with central minorities
+
+Let's take a likely-case for an unpopular norm, generate multiple networks of this target, and simulate the emergence of the norm following a deterministic and probabilistic choice model:
+
+```{r, echo=TRUE, fig.show='hold', fig.keep='all', message=FALSE, fig.height=5}
+# pick one configuration that likely leads to an unpopular norm, and explore multiple 'seeds':
+run_one_seed <- function(
+  i,
+  base_seed = 2253281,
+  params = list(s = 15, e = 10, w = 40, z = 50, lambda1 = 5, lambda2 = 1.8),
+  
+  # tweak network
+  k_min = 2, 
+  k_max = 20,
+  alpha = 2.4,
+  rho = 0.4,
+  r = -0.1,
+  
+  # retrieve network
+  return_network = FALSE
+  
+) {
+  # derived seed for this run
+  seed_i <- base_seed + i
+  set.seed(seed_i)
+
+  # --- network creation ---
+  degseq <- fdegseq(
+    n      = 50,
+    alpha  = alpha,
+    k_min  = k_min,
+    k_max  = k_max,
+    dist   = "log-normal", #use log-normal 
+    seed   = seed_i
+  )
+
+  network <- sample_degseq(degseq, method = "vl")
+  
+  V(network)$role <- sample(
+    c(rep("trendsetter", 5), rep("conformist", 45))
+  )
+  
+
+  rewired_network <- frewire_r(network, r, verbose = FALSE, max_iter = 1e5)
+  final_network   <- fswap_rho(rewired_network, rho, verbose = FALSE, max_iter = 1e4)
+  
+  # --- stats ---
+  stats <- list(
+    run           = i,
+    seed          = seed_i,
+    num_nodes     = vcount(final_network),
+    num_edges     = ecount(final_network),
+    avg_degree    = mean(degree(final_network)),
+    sd_degree     = sd(degree(final_network)),
+    net_density   = edge_density(final_network),
+    net_diameter  = diameter(final_network, directed = FALSE, unconnected = TRUE),
+    avg_path_len  = average.path.length(final_network, directed = FALSE),
+    clust_coeff   = transitivity(final_network, type = "global"),
+    assort_deg    = assortativity_degree(final_network),
+    deg_trait_cor = fdegtraitcor(final_network)$cor,
+    components    = components(final_network)$no
+  )
+  
+  fplot_graph(final_network, layout = layout_with_fr(final_network)) 
+  
+  
+  # --- initial actions ---
+  V(final_network)$action <- ifelse(V(final_network)$role == "trendsetter", 1, 0)
+  
+  # --- deterministic simulation ---
+  sim_det <- fabm(
+    network      = final_network,
+    params       = params,
+    max_rounds   = 50,
+    mi_threshold = 0.49,
+    choice_rule  = "deterministic",
+    plot         = TRUE,
+    histories    = TRUE
+  )
+  
+  # generate the gif for the current network
+  gif_filename <- paste0("./figures/animation_network_", seed_i, ".gif")
+  gif_path <- fnetworkgif(final_network, sim_det$decision_history, rounds = sim_det$equilibrium$round, output_dir = "./figures")
+  # rename the gif to match the naming pattern
+  file.rename(gif_path, gif_filename)
+
+  if (!is.null(sim_det$plot)) {
+    print(sim_det$plot)
+  }
+  
+  # --- probabilistic simulation ---
+  sim_prob <- fabm(
+    network                = final_network,
+    params                 = params,
+    max_rounds             = 100,
+    mi_threshold           = 0.49,
+    choice_rule            = "probabilistic",
+    stable_window          = 8,   # the length of the window of adoption values
+    required_stable_rounds = 20, # number of windows needed to declare equilibrium
+    plot                   = TRUE
+  )
+  if (!is.null(sim_prob$plot)) {
+    print(sim_prob$plot)
+  }
+  
+   result <- list(
+    segregation_det  = sim_det$equilibrium$segregation,
+    segregation_prob = sim_prob$equilibrium$segregation,
+    stats            = stats
+  )
+  
+  if (return_network) {
+    result$network <- final_network
+  }
+  
+  result
+}
+
+```
+
+
+```{r}
+test <- run_one_seed(2, k_min = 2, k_max = 20, alpha = 2.4, rho = 0.4, r = -0.1, return_network = TRUE)
+
+base = 2253281
+seed = base + 2
+
+#cbind(degree(test$network),V(test$network)$role)
+
+#let's check the distribution of distances to 'trendsetters', among 'conformists'
+g <- test$network
+trend <- which(V(g)$role == "trendsetter")
+conf  <- which(V(g)$role == "conformist")
+
+# distances: rows = sources (trendsetters), cols = all vertices
+D <- distances(g, v = trend, to = V(g), mode = "all")
+Dc <- D[, conf] #keep just conformists
+
+# calculate (a) the distance to the nearest trendsetter and (b) the average distance to trendsetters, across conformists
+dists <- data.frame(
+  shortest = apply(Dc, 2, min),
+  average = apply(Dc, 2, function(x) mean(x[is.finite(x)]))
+)
+dists_long <- pivot_longer(
+  dists,
+  cols = c(shortest, average),
+  names_to = "type",
+  values_to = "distance_to_seed"
+)
+
+#plot the distribution
+ggplot(dists_long, aes(x = distance_to_seed, fill = type)) +
+  geom_histogram(
+    bins = 20,
+    alpha = 0.5,
+    position = "identity"
+  ) +
+  theme_minimal()
+```
+
+
+```{r, out.width="60%"}
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+```
+
+```{r}
+test <- run_one_seed(3, k_min = 2, k_max = 20, alpha = 2.4, rho = 0.4, r = -0.1)
+seed = seed + 1
+```
+
+```{r, out.width="60%"}
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+```
+
+```{r}
+test <- run_one_seed(4, k_min = 2, k_max = 20, alpha = 2.4, rho = 0.4, r = -0.1, return_network = TRUE)
+base = 2253281
+seed = base + 4
+
+#let's check the distribution of distances to 'trendsetters', among 'conformists'
+g <- test$network
+trend <- which(V(g)$role == "trendsetter")
+conf  <- which(V(g)$role == "conformist")
+
+# distances: rows = sources (trendsetters), cols = all vertices
+D <- distances(g, v = trend, to = V(g), mode = "all")
+Dc <- D[, conf] #keep just conformists
+
+# calculate (a) the distance to the nearest trendsetter and (b) the average distance to trendsetters, across conformists
+dists <- data.frame(
+  shortest = apply(Dc, 2, min),
+  average = apply(Dc, 2, function(x) mean(x[is.finite(x)]))
+)
+dists_long <- pivot_longer(
+  dists,
+  cols = c(shortest, average),
+  names_to = "type",
+  values_to = "distance_to_seed"
+)
+
+#plot the distribution
+ggplot(dists_long, aes(x = distance_to_seed, fill = type)) +
+  geom_histogram(
+    bins = 20,
+    alpha = 0.5,
+    position = "identity"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+test$stats
+table(degree(test$network))
+
+#identify trendsetters
+ids <- which(V(test$network)$role == "trendsetter")
+
+#check their centrality
+sort(as.numeric(cbind(degree(test$network), V(test$network)$role)[ids]))
+```
+
+```{r, out.width="60%"}
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+```
+
+### increased density
+
+```{r}
+test <- run_one_seed(5, k_min = 2, k_max = 49, alpha = 2.4, rho = 0.4, r = -0.1, return_network = TRUE)
+seed = seed + 1
+
+#sort(degree(test$network))
+#cbind(degree(test$network), V(test$network)$role)
+
+#let's check the distribution of distances to 'trendsetters', among 'conformists'
+g <- test$network
+trend <- which(V(g)$role == "trendsetter")
+conf  <- which(V(g)$role == "conformist")
+
+# distances: rows = sources (trendsetters), cols = all vertices
+D <- distances(g, v = trend, to = V(g), mode = "all")
+Dc <- D[, conf] #keep just conformists
+
+# calculate (a) the distance to the nearest trendsetter and (b) the average distance to trendsetters, across conformists
+dists <- data.frame(
+  shortest = apply(Dc, 2, min),
+  average = apply(Dc, 2, function(x) mean(x[is.finite(x)]))
+)
+dists_long <- pivot_longer(
+  dists,
+  cols = c(shortest, average),
+  names_to = "type",
+  values_to = "distance_to_seed"
+)
+
+#plot the distribution
+ggplot(dists_long, aes(x = distance_to_seed, fill = type)) +
+  geom_histogram(
+    bins = 20,
+    alpha = 0.5,
+    position = "identity"
+  ) +
+  theme_minimal()
+```
+
+<br>
+
+Let's take this as our experimental network configuration.
+
+
+```{r}
+test$stats
+table(degree(test$network))
+
+#identify trendsetters
+ids <- which(V(test$network)$role == "trendsetter")
+
+#check their centrality
+sort(as.numeric(cbind(degree(test$network), V(test$network)$role)[ids]))
+```
+
+
+```{r, eval = FALSE}
+# use this as the network structure for an otree session:
+#cbind(degree(test$network),V(test$network)$role)
+
+# convert to adjacency matrix
+adj_matrix <- as.matrix(as_adjacency_matrix(test$network))
+
+#get roles
+role_vector <- ifelse(V(test$network)$role == "trendsetter",1,0)
+# create a list to store the network data
+net <- list(adj_matrix = adj_matrix, role_vector = role_vector)
+# save the list as a JSON file
+write_json(net, "network_test_n50.json")
+```
+
+```{r, out.width="60%"}
+knitr::include_graphics(paste0("./figures/animation_network_", seed ,".gif"))
+```
+
+
+## 2. random network
+
+with same number of ties
+
+```{r}
+#?erdos.renyi.game
+#g <- erdos.renyi.game(n=50, p=0.05)
+#?sample_gnm()
+set.seed(124124)
+network <- sample_gnm(n=50, m=113)
+V(network)$role <- sample(
+  c(rep("trendsetter", 5), rep("conformist", 45))
+  )
+
+fplot_graph(network)
+
+test <- fabm(network = network,
+    max_rounds   = 50,
+    mi_threshold = 0.49,
+    choice_rule  = "deterministic",
+    plot         = TRUE,
+    histories    = TRUE
+  )
+
+test$plot
+
+
+#let's check the distribution of distances to 'trendsetters', among 'conformists'
+g <- network
+trend <- which(V(g)$role == "trendsetter")
+conf  <- which(V(g)$role == "conformist")
+
+# distances: rows = sources (trendsetters), cols = all vertices
+D <- distances(g, v = trend, to = V(g), mode = "all")
+Dc <- D[, conf] #keep just conformists
+
+# calculate (a) the distance to the nearest trendsetter and (b) the average distance to trendsetters, across conformists
+dists <- data.frame(
+  shortest = apply(Dc, 2, min),
+  average = apply(Dc, 2, function(x) mean(x[is.finite(x)]))
+)
+dists_long <- pivot_longer(
+  dists,
+  cols = c(shortest, average),
+  names_to = "type",
+  values_to = "distance_to_seed"
+)
+
+#plot the distribution
+ggplot(dists_long, aes(x = distance_to_seed, fill = type)) +
+  geom_histogram(
+    bins = 20,
+    alpha = 0.5,
+    position = "identity"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+# --- stats ---
+stats <- list(num_nodes     = vcount(g),
+              num_edges     = ecount(g),
+              avg_degree    = mean(degree(g)),
+              sd_degree     = sd(degree(g)),
+              net_density   = edge_density(g),
+              net_diameter  = diameter(g, directed = FALSE, unconnected = TRUE),
+              avg_path_len  = average.path.length(g, directed = FALSE),
+              clust_coeff   = transitivity(g, type = "global"),
+              assort_deg    = assortativity_degree(g),
+              deg_trait_cor = fdegtraitcor(g)$cor,
+              components    = components(g)$no)
+stats
+```
+
+```{r, eval = FALSE}
+# use this as the network structure for an otree session:
+#cbind(degree(test$network),V(test$network)$role)
+
+# convert to adjacency matrix
+adj_matrix <- as.matrix(as_adjacency_matrix(network))
+
+#get roles
+role_vector <- ifelse(V(network)$role == "trendsetter",1,0)
+# create a list to store the network data
+net <- list(adj_matrix = adj_matrix, role_vector = role_vector)
+# save the list as a JSON file
+write_json(net, "network_test_n50_random.json")
+```
+
+
+

@@ -23,8 +23,10 @@ navbar:
       menu:
       - text: "Test with n=10"
         href: test_n10.html
-      - text: "Experiment #1 (Prolific)"
-        href: experiment.html
+      - text: "Test with n=100"
+        href: experiment100.html
+      - text: "Test with n=50"
+        href: experiment50.html
       - text: "SRDA computer-lab"
         href: demonstration_SRDA.html
     

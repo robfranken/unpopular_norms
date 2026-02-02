@@ -454,16 +454,23 @@ rm(packages)</code></pre>
 <div id="experimental-conditions" class="section level1" number="2">
 <h1><span class="header-section-number">2</span> Experimental
 conditions</h1>
+<div id="heavy-tailed-network-with-central-minorities"
+class="section level2" number="2.1">
+<h2><span class="header-section-number">2.1</span> 1. heavy-tailed
+network with central minorities</h2>
+<p>Let’s take a likely-case for an unpopular norm, generate multiple
+networks of this target, and simulate the emergence of the norm
+following a deterministic and probabilistic choice model:</p>
 <pre class="r test"><code># pick one configuration that likely leads to an unpopular norm, and explore multiple &#39;seeds&#39;:
 run_one_seed &lt;- function(
   i,
-  base_seed = 1253281123,
+  base_seed = 2253281,
   params = list(s = 15, e = 10, w = 40, z = 50, lambda1 = 5, lambda2 = 1.8),
   
   # tweak network
   k_min = 2, 
-  k_max = 9,
-  alpha = 2.1,
+  k_max = 20,
+  alpha = 2.4,
   rho = 0.4,
   r = -0.1,
   
@@ -477,7 +484,7 @@ run_one_seed &lt;- function(
 
   # --- network creation ---
   degseq &lt;- fdegseq(
-    n      = 10,
+    n      = 50,
     alpha  = alpha,
     k_min  = k_min,
     k_max  = k_max,
@@ -488,7 +495,7 @@ run_one_seed &lt;- function(
   network &lt;- sample_degseq(degseq, method = &quot;vl&quot;)
   
   V(network)$role &lt;- sample(
-    c(rep(&quot;trendsetter&quot;, 2), rep(&quot;conformist&quot;, 8))
+    c(rep(&quot;trendsetter&quot;, 5), rep(&quot;conformist&quot;, 45))
   )
   
 
@@ -565,127 +572,191 @@ run_one_seed &lt;- function(
   }
   
   result
-}
-
-####
-
-run_one_sw &lt;- function(
-  i,
-  base_seed = 1253281123,
-  model = &quot;watts-strogatz&quot;,
-  beta = 0,
-  nei = 3,
-  clique_size = 5,
-  pmin = 0.1,
-  
-  params = list(s = 15, e = 10, w = 40, z = 50, lambda1 = 5, lambda2 = 1.8),
-  
-  # retrieve network
-  return_network = FALSE
-  
-) {
-  # derived seed for this run
-  seed_i &lt;- base_seed + i
-  set.seed(seed_i)
-
-  if (model == &quot;watts-strogatz&quot;) {
-    network &lt;- sample_smallworld(dim = 1, size = 10, nei = 3, p = beta) }
-  else if (model == &quot;caveman&quot;) {
-    network &lt;- simulate_caveman(n = 10, clique_size = clique_size) 
-  }
-
-  V(network)$role &lt;- sample(
-    c(rep(&quot;trendsetter&quot;, 2), rep(&quot;conformist&quot;, 8))
-  )
-  
-  
-  final_network &lt;- network
-
-  
-  # --- stats ---
-  stats &lt;- list(
-    run           = i,
-    seed          = seed_i,
-    num_nodes     = vcount(final_network),
-    num_edges     = ecount(final_network),
-    avg_degree    = mean(degree(final_network)),
-    sd_degree     = sd(degree(final_network)),
-    net_density   = edge_density(final_network),
-    net_diameter  = diameter(final_network, directed = FALSE, unconnected = TRUE),
-    avg_path_len  = average.path.length(final_network, directed = FALSE),
-    clust_coeff   = transitivity(final_network, type = &quot;global&quot;),
-    assort_deg    = assortativity_degree(final_network),
-    deg_trait_cor = fdegtraitcor(final_network)$cor,
-    components    = components(final_network)$no
-  )
-  
-  stats_df &lt;- data.frame(
-    Metric = names(stats),
-    Value  = unlist(stats),
-    row.names = NULL
-  )
-  
-  #print(stats_df)
-  fplot_graph(final_network, layout = layout.kamada.kawai(final_network))
-  
-
-  # --- initial actions ---
-  V(final_network)$action &lt;- ifelse(V(final_network)$role == &quot;trendsetter&quot;, 1, 0)
-  
-  # --- deterministic simulation ---
-  sim_det &lt;- fabm(
-    network      = final_network,
-    params       = params,
-    max_rounds   = 50,
-    mi_threshold = 0.49,
-    choice_rule  = &quot;deterministic&quot;,
-    plot         = TRUE,
-    histories    = TRUE
-  )
-
-  # generate the gif for the current network
-  gif_filename &lt;- paste0(&quot;./figures/animation_network_&quot;, seed_i, &quot;.gif&quot;)
-  gif_path &lt;- fnetworkgif(final_network, sim_det$decision_history, rounds = sim_det$equilibrium$round, output_dir = &quot;./figures&quot;)
-  # rename the gif to match the naming pattern
-  file.rename(gif_path, gif_filename)
-  
-  
-  if (!is.null(sim_det$plot)) {
-    print(sim_det$plot)
-  }
-  
-  # --- probabilistic simulation ---
-  sim_prob &lt;- fabm(
-    network                = final_network,
-    params                 = params,
-    max_rounds             = 100,
-    mi_threshold           = 0.49,
-    choice_rule            = &quot;probabilistic&quot;,
-    stable_window          = 8,   # the length of the window of adoption values
-    required_stable_rounds = 20, # number of windows needed to declare equilibrium
-    plot                   = TRUE
-  )
-  if (!is.null(sim_prob$plot)) {
-    print(sim_prob$plot)
-  }
-  
-  
-  result &lt;- list(
-    segregation_det  = sim_det$equilibrium$segregation,
-    segregation_prob = sim_prob$equilibrium$segregation,
-    stats            = stats
-  )
-  
-  if (return_network) {
-    result$network &lt;- final_network
-  }
-  
-  result
 }</code></pre>
-<pre class="r test"><code>test &lt;- run_one_seed(1, k_min = 2, k_max = 9, alpha = 2.1, rho = 0.7, r = -0.1, return_network = TRUE)</code></pre>
-<p><img src="test_n10_files/figure-html/unnamed-chunk-2-1.png" width="672" /><img src="test_n10_files/figure-html/unnamed-chunk-2-2.png" width="672" /><img src="test_n10_files/figure-html/unnamed-chunk-2-3.png" width="672" /></p>
-<pre class="r test"><code>base = 1253281123
-seed = base + 1</code></pre>
+<pre class="r test"><code>test &lt;- run_one_seed(2, k_min = 2, k_max = 20, alpha = 2.4, rho = 0.4, r = -0.1, return_network = TRUE)</code></pre>
+<p><img src="experiment50_files/figure-html/unnamed-chunk-2-1.png" width="672" /><img src="experiment50_files/figure-html/unnamed-chunk-2-2.png" width="672" /><img src="experiment50_files/figure-html/unnamed-chunk-2-3.png" width="672" /></p>
+<pre class="r test"><code>base = 2253281
+seed = base + 2
+
+# cbind(degree(test$network),V(test$network)$role)
+
+# let&#39;s check the distribution of distances to &#39;trendsetters&#39;, among &#39;conformists&#39;
+g &lt;- test$network
+trend &lt;- which(V(g)$role == &quot;trendsetter&quot;)
+conf &lt;- which(V(g)$role == &quot;conformist&quot;)
+
+# distances: rows = sources (trendsetters), cols = all vertices
+D &lt;- distances(g, v = trend, to = V(g), mode = &quot;all&quot;)
+Dc &lt;- D[, conf]  #keep just conformists
+
+# calculate (a) the distance to the nearest trendsetter and (b) the average distance to
+# trendsetters, across conformists
+dists &lt;- data.frame(shortest = apply(Dc, 2, min), average = apply(Dc, 2, function(x) mean(x[is.finite(x)])))
+dists_long &lt;- pivot_longer(dists, cols = c(shortest, average), names_to = &quot;type&quot;, values_to = &quot;distance_to_seed&quot;)
+
+# plot the distribution
+ggplot(dists_long, aes(x = distance_to_seed, fill = type)) + geom_histogram(bins = 20, alpha = 0.5, position = &quot;identity&quot;) +
+    theme_minimal()</code></pre>
+<p><img src="experiment50_files/figure-html/unnamed-chunk-2-4.png" width="672" /></p>
+<pre class="r test"><code>knitr::include_graphics(paste0(&quot;./figures/animation_network_&quot;, seed, &quot;.gif&quot;))</code></pre>
+<p><img src="figures/animation_network_2253283.gif" width="60%" /></p>
+<pre class="r test"><code>test &lt;- run_one_seed(3, k_min = 2, k_max = 20, alpha = 2.4, rho = 0.4, r = -0.1)</code></pre>
+<p><img src="experiment50_files/figure-html/unnamed-chunk-4-1.png" width="672" /><img src="experiment50_files/figure-html/unnamed-chunk-4-2.png" width="672" /><img src="experiment50_files/figure-html/unnamed-chunk-4-3.png" width="672" /></p>
+<pre class="r test"><code>seed = seed + 1</code></pre>
+<pre class="r test"><code>knitr::include_graphics(paste0(&quot;./figures/animation_network_&quot;, seed, &quot;.gif&quot;))</code></pre>
+<p><img src="figures/animation_network_2253284.gif" width="60%" /></p>
+<pre class="r test"><code>test &lt;- run_one_seed(4, k_min = 2, k_max = 20, alpha = 2.4, rho = 0.4, r = -0.1, return_network = TRUE)</code></pre>
+<p><img src="experiment50_files/figure-html/unnamed-chunk-6-1.png" width="672" /><img src="experiment50_files/figure-html/unnamed-chunk-6-2.png" width="672" /><img src="experiment50_files/figure-html/unnamed-chunk-6-3.png" width="672" /></p>
+<pre class="r test"><code>base = 2253281
+seed = base + 4
+
+# let&#39;s check the distribution of distances to &#39;trendsetters&#39;, among &#39;conformists&#39;
+g &lt;- test$network
+trend &lt;- which(V(g)$role == &quot;trendsetter&quot;)
+conf &lt;- which(V(g)$role == &quot;conformist&quot;)
+
+# distances: rows = sources (trendsetters), cols = all vertices
+D &lt;- distances(g, v = trend, to = V(g), mode = &quot;all&quot;)
+Dc &lt;- D[, conf]  #keep just conformists
+
+# calculate (a) the distance to the nearest trendsetter and (b) the average distance to
+# trendsetters, across conformists
+dists &lt;- data.frame(shortest = apply(Dc, 2, min), average = apply(Dc, 2, function(x) mean(x[is.finite(x)])))
+dists_long &lt;- pivot_longer(dists, cols = c(shortest, average), names_to = &quot;type&quot;, values_to = &quot;distance_to_seed&quot;)
+
+# plot the distribution
+ggplot(dists_long, aes(x = distance_to_seed, fill = type)) + geom_histogram(bins = 20, alpha = 0.5, position = &quot;identity&quot;) +
+    theme_minimal()</code></pre>
+<p><img src="experiment50_files/figure-html/unnamed-chunk-6-4.png" width="672" /></p>
+<pre class="r test"><code>test$stats</code></pre>
+<pre class="test3"><code>#&gt; $run
+#&gt; [1] 4
+#&gt; 
+#&gt; $seed
+#&gt; [1] 2253285
+#&gt; 
+#&gt; $num_nodes
+#&gt; [1] 50
+#&gt; 
+#&gt; $num_edges
+#&gt; [1] 89
+#&gt; 
+#&gt; $avg_degree
+#&gt; [1] 3.56
+#&gt; 
+#&gt; $sd_degree
+#&gt; [1] 3.091529
+#&gt; 
+#&gt; $net_density
+#&gt; [1] 0.07265306
+#&gt; 
+#&gt; $net_diameter
+#&gt; [1] 6
+#&gt; 
+#&gt; $avg_path_len
+#&gt; [1] 2.923265
+#&gt; 
+#&gt; $clust_coeff
+#&gt; [1] 0.1428571
+#&gt; 
+#&gt; $assort_deg
+#&gt; [1] -0.09244437
+#&gt; 
+#&gt; $deg_trait_cor
+#&gt; [1] 0.5489375
+#&gt; 
+#&gt; $components
+#&gt; [1] 1</code></pre>
+<pre class="r test"><code>table(degree(test$network))</code></pre>
+<pre class="test3"><code>#&gt; 
+#&gt;  2  3  4  5  6  7  8  9 10 19 
+#&gt; 29  8  3  3  1  1  1  1  2  1</code></pre>
+<pre class="r test"><code># identify trendsetters
+ids &lt;- which(V(test$network)$role == &quot;trendsetter&quot;)
+
+# check their centrality
+sort(as.numeric(cbind(degree(test$network), V(test$network)$role)[ids]))</code></pre>
+<pre class="test3"><code>#&gt; [1]  3  5  6 10 19</code></pre>
+<pre class="r test"><code>knitr::include_graphics(paste0(&quot;./figures/animation_network_&quot;, seed, &quot;.gif&quot;))</code></pre>
+<p><img src="figures/animation_network_2253285.gif" width="60%" /></p>
+<div id="increased-density" class="section level3" number="2.1.1">
+<h3><span class="header-section-number">2.1.1</span> increased
+density</h3>
+<pre class="r test"><code>test &lt;- run_one_seed(5, k_min = 2, k_max = 49, alpha = 2.4, rho = 0.4, r = -0.1, return_network = TRUE)</code></pre>
+<p><img src="experiment50_files/figure-html/unnamed-chunk-9-1.png" width="672" /><img src="experiment50_files/figure-html/unnamed-chunk-9-2.png" width="672" /><img src="experiment50_files/figure-html/unnamed-chunk-9-3.png" width="672" /></p>
+<pre class="r test"><code>seed = seed + 1
+
+# sort(degree(test$network)) cbind(degree(test$network), V(test$network)$role)
+
+# let&#39;s check the distribution of distances to &#39;trendsetters&#39;, among &#39;conformists&#39;
+g &lt;- test$network
+trend &lt;- which(V(g)$role == &quot;trendsetter&quot;)
+conf &lt;- which(V(g)$role == &quot;conformist&quot;)
+
+# distances: rows = sources (trendsetters), cols = all vertices
+D &lt;- distances(g, v = trend, to = V(g), mode = &quot;all&quot;)
+Dc &lt;- D[, conf]  #keep just conformists
+
+# calculate (a) the distance to the nearest trendsetter and (b) the average distance to
+# trendsetters, across conformists
+dists &lt;- data.frame(shortest = apply(Dc, 2, min), average = apply(Dc, 2, function(x) mean(x[is.finite(x)])))
+dists_long &lt;- pivot_longer(dists, cols = c(shortest, average), names_to = &quot;type&quot;, values_to = &quot;distance_to_seed&quot;)
+
+# plot the distribution
+ggplot(dists_long, aes(x = distance_to_seed, fill = type)) + geom_histogram(bins = 20, alpha = 0.5, position = &quot;identity&quot;) +
+    theme_minimal()</code></pre>
+<p><img src="experiment50_files/figure-html/unnamed-chunk-9-4.png" width="672" /></p>
+<p><br></p>
+<p>Let’s take this as our experimental network configuration.</p>
+<pre class="r test"><code>test$stats</code></pre>
+<pre class="test3"><code>#&gt; $run
+#&gt; [1] 5
+#&gt; 
+#&gt; $seed
+#&gt; [1] 2253286
+#&gt; 
+#&gt; $num_nodes
+#&gt; [1] 50
+#&gt; 
+#&gt; $num_edges
+#&gt; [1] 113
+#&gt; 
+#&gt; $avg_degree
+#&gt; [1] 4.52
+#&gt; 
+#&gt; $sd_degree
+#&gt; [1] 4.15142
+#&gt; 
+#&gt; $net_density
+#&gt; [1] 0.0922449
+#&gt; 
+#&gt; $net_diameter
+#&gt; [1] 6
+#&gt; 
+#&gt; $avg_path_len
+#&gt; [1] 2.669388
+#&gt; 
+#&gt; $clust_coeff
+#&gt; [1] 0.2378049
+#&gt; 
+#&gt; $assort_deg
+#&gt; [1] -0.1081219
+#&gt; 
+#&gt; $deg_trait_cor
+#&gt; [1] 0.4120337
+#&gt; 
+#&gt; $components
+#&gt; [1] 1</code></pre>
+<pre class="r test"><code>table(degree(test$network))</code></pre>
+<pre class="test3"><code>#&gt; 
+#&gt;  2  3  4  5  6  7 10 11 14 15 21 
+#&gt; 25  3  7  4  2  3  1  1  1  2  1</code></pre>
+<pre class="r test"><code># identify trendsetters
+ids &lt;- which(V(test$network)$role == &quot;trendsetter&quot;)
+
+# check their centrality
+sort(as.numeric(cbind(degree(test$network), V(test$network)$role)[ids]))</code></pre>
+<pre class="test3"><code>#&gt; [1]  5  7 10 11 15</code></pre>
 <pre class="r test"><code># use this as the network structure for an otree session:
 # cbind(degree(test$network),V(test$network)$role)
 
@@ -697,26 +768,99 @@ role_vector &lt;- ifelse(V(test$network)$role == &quot;trendsetter&quot;, 1, 0)
 # create a list to store the network data
 net &lt;- list(adj_matrix = adj_matrix, role_vector = role_vector)
 # save the list as a JSON file
-write_json(net, &quot;network_test_n10.json&quot;)</code></pre>
-<pre class="r test"><code># random
-test &lt;- run_one_sw(i = 15, beta = 1, pmin = 0.15, return_network = TRUE)</code></pre>
-<p><img src="test_n10_files/figure-html/unnamed-chunk-4-1.png" width="672" /><img src="test_n10_files/figure-html/unnamed-chunk-4-2.png" width="672" /><img src="test_n10_files/figure-html/unnamed-chunk-4-3.png" width="672" /></p>
-<pre class="r test"><code># fplot_graph(test$network)</code></pre>
+write_json(net, &quot;network_test_n50.json&quot;)</code></pre>
+<pre class="r test"><code>knitr::include_graphics(paste0(&quot;./figures/animation_network_&quot;, seed, &quot;.gif&quot;))</code></pre>
+<p><img src="figures/animation_network_2253286.gif" width="60%" /></p>
+</div>
+</div>
+<div id="random-network" class="section level2" number="2.2">
+<h2><span class="header-section-number">2.2</span> 2. random
+network</h2>
+<p>with same number of ties</p>
+<pre class="r test"><code># ?erdos.renyi.game g &lt;- erdos.renyi.game(n=50, p=0.05) ?sample_gnm()
+set.seed(124124)
+network &lt;- sample_gnm(n = 50, m = 113)
+V(network)$role &lt;- sample(c(rep(&quot;trendsetter&quot;, 5), rep(&quot;conformist&quot;, 45)))
+
+fplot_graph(network)</code></pre>
+<p><img src="experiment50_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
+<pre class="r test"><code>test &lt;- fabm(network = network, max_rounds = 50, mi_threshold = 0.49, choice_rule = &quot;deterministic&quot;,
+    plot = TRUE, histories = TRUE)
+
+test$plot</code></pre>
+<p><img src="experiment50_files/figure-html/unnamed-chunk-13-2.png" width="672" /></p>
+<pre class="r test"><code># let&#39;s check the distribution of distances to &#39;trendsetters&#39;, among &#39;conformists&#39;
+g &lt;- network
+trend &lt;- which(V(g)$role == &quot;trendsetter&quot;)
+conf &lt;- which(V(g)$role == &quot;conformist&quot;)
+
+# distances: rows = sources (trendsetters), cols = all vertices
+D &lt;- distances(g, v = trend, to = V(g), mode = &quot;all&quot;)
+Dc &lt;- D[, conf]  #keep just conformists
+
+# calculate (a) the distance to the nearest trendsetter and (b) the average distance to
+# trendsetters, across conformists
+dists &lt;- data.frame(shortest = apply(Dc, 2, min), average = apply(Dc, 2, function(x) mean(x[is.finite(x)])))
+dists_long &lt;- pivot_longer(dists, cols = c(shortest, average), names_to = &quot;type&quot;, values_to = &quot;distance_to_seed&quot;)
+
+# plot the distribution
+ggplot(dists_long, aes(x = distance_to_seed, fill = type)) + geom_histogram(bins = 20, alpha = 0.5, position = &quot;identity&quot;) +
+    theme_minimal()</code></pre>
+<p><img src="experiment50_files/figure-html/unnamed-chunk-13-3.png" width="672" /></p>
+<pre class="r test"><code># --- stats ---
+stats &lt;- list(num_nodes = vcount(g), num_edges = ecount(g), avg_degree = mean(degree(g)), sd_degree = sd(degree(g)),
+    net_density = edge_density(g), net_diameter = diameter(g, directed = FALSE, unconnected = TRUE),
+    avg_path_len = average.path.length(g, directed = FALSE), clust_coeff = transitivity(g, type = &quot;global&quot;),
+    assort_deg = assortativity_degree(g), deg_trait_cor = fdegtraitcor(g)$cor, components = components(g)$no)
+stats</code></pre>
+<pre class="test3"><code>#&gt; $num_nodes
+#&gt; [1] 50
+#&gt; 
+#&gt; $num_edges
+#&gt; [1] 113
+#&gt; 
+#&gt; $avg_degree
+#&gt; [1] 4.52
+#&gt; 
+#&gt; $sd_degree
+#&gt; [1] 1.65665
+#&gt; 
+#&gt; $net_density
+#&gt; [1] 0.0922449
+#&gt; 
+#&gt; $net_diameter
+#&gt; [1] 5
+#&gt; 
+#&gt; $avg_path_len
+#&gt; [1] 2.730612
+#&gt; 
+#&gt; $clust_coeff
+#&gt; [1] 0.08387097
+#&gt; 
+#&gt; $assort_deg
+#&gt; [1] 0.1327246
+#&gt; 
+#&gt; $deg_trait_cor
+#&gt; [1] -0.02439024
+#&gt; 
+#&gt; $components
+#&gt; [1] 1</code></pre>
 <pre class="r test"><code># use this as the network structure for an otree session:
 # cbind(degree(test$network),V(test$network)$role)
 
 # convert to adjacency matrix
-adj_matrix &lt;- as.matrix(as_adjacency_matrix(test$network))
+adj_matrix &lt;- as.matrix(as_adjacency_matrix(network))
 
 # get roles
-role_vector &lt;- ifelse(V(test$network)$role == &quot;trendsetter&quot;, 1, 0)
+role_vector &lt;- ifelse(V(network)$role == &quot;trendsetter&quot;, 1, 0)
 # create a list to store the network data
 net &lt;- list(adj_matrix = adj_matrix, role_vector = role_vector)
 # save the list as a JSON file
-write_json(net, &quot;network_test_n10_random.json&quot;)</code></pre>
+write_json(net, &quot;network_test_n50_random.json&quot;)</code></pre>
+</div>
 </div>
 
-<div id="rmd-source-code">LS0tDQp0aXRsZTogIkV4cGVyaW1lbnQiDQpiaWJsaW9ncmFwaHk6IHJlZmVyZW5jZXMuYmliDQpsaW5rLWNpdGF0aW9uczogdHJ1ZQ0KZGF0ZTogIkxhc3QgY29tcGlsZWQgb24gYHIgZm9ybWF0KFN5cy50aW1lKCksICclZC0lbS0lWScpYCINCm91dHB1dDogDQogIGh0bWxfZG9jdW1lbnQ6DQogICAgc2VsZl9jb250YWluZWQ6IHRydWUNCiAgICBjc3M6IHR3ZWFrcy5jc3MNCiAgICB0b2M6IHRydWUNCiAgICB0b2NfZmxvYXQ6IHRydWUNCiAgICBudW1iZXJfc2VjdGlvbnM6IHRydWUNCiAgICB0b2NfZGVwdGg6IDQNCiAgICBjb2RlX2ZvbGRpbmc6IHNob3cNCiAgICBjb2RlX2Rvd25sb2FkOiB5ZXMNCi0tLQ0KDQpgYGB7ciwgZ2xvYmFsc2V0dGluZ3MsIGVjaG89RkFMU0UsIHdhcm5pbmc9RkFMU0UsIHJlc3VsdHM9J2hpZGUnLCBtZXNzYWdlPUZBTFNFfQ0KbGlicmFyeShrbml0cikNCmxpYnJhcnkodGlkeXZlcnNlKQ0Ka25pdHI6Om9wdHNfY2h1bmskc2V0KGVjaG8gPSBUUlVFKQ0Kb3B0c19jaHVuayRzZXQodGlkeS5vcHRzPWxpc3Qod2lkdGguY3V0b2ZmPTEwMCksdGlkeT1UUlVFLCB3YXJuaW5nID0gRkFMU0UsIG1lc3NhZ2UgPSBGQUxTRSxjb21tZW50ID0gIiM+IiwgY2FjaGU9VFJVRSwgY2xhc3Muc291cmNlPWMoInRlc3QiKSwgY2xhc3Mub3V0cHV0PWMoInRlc3QzIikpDQpvcHRpb25zKHdpZHRoID0gMTAwKQ0KcmdsOjpzZXR1cEtuaXRyKCkNCg0KY29sb3JpemUgPC0gZnVuY3Rpb24oeCwgY29sb3IpIHtzcHJpbnRmKCI8c3BhbiBzdHlsZT0nY29sb3I6ICVzOyc+JXM8L3NwYW4+IiwgY29sb3IsIHgpIH0NCmBgYA0KDQpgYGB7ciBrbGlwcHksIGVjaG89RkFMU0UsIGluY2x1ZGU9VFJVRX0NCmtsaXBweTo6a2xpcHB5KHBvc2l0aW9uID0gYygndG9wJywgJ3JpZ2h0JykpDQoja2xpcHB5OjprbGlwcHkoY29sb3IgPSAnZGFya3JlZCcpDQoja2xpcHB5OjprbGlwcHkodG9vbHRpcF9tZXNzYWdlID0gJ0NsaWNrIHRvIGNvcHknLCB0b29sdGlwX3N1Y2Nlc3MgPSAnRG9uZScpDQpgYGANCg0KLS0tDQoNCiMgR2V0dGluZyBzdGFydGVkDQoNClRvIGNvcHkgdGhlIGNvZGUsIGNsaWNrIHRoZSBidXR0b24gaW4gdGhlIHVwcGVyIHJpZ2h0IGNvcm5lciBvZiB0aGUgY29kZS1jaHVua3MuDQoNCiMjIGNsZWFuIHVwDQoNCmBgYHtyLCBjbGVhbl91cCwgcmVzdWx0cz0naGlkZSd9DQpybShsaXN0PWxzKCkpDQpnYygpDQpgYGANCg0KPGJyPg0KDQojIyBjdXN0b20gZnVuY3Rpb25zDQoNCldlIGRlZmluZWQgYSBudW1iZXIgY3VzdG9tIGZ1bmN0aW9ucywgYXQgYHIgeGZ1bjo6ZW1iZWRfZmlsZSgiLi9jdXN0b21fZnVuY3Rpb25zLlIiKWAuDQoNCmBgYHtyLCBjdXN0b21fZnVuY3Rpb25zfQ0Kc291cmNlKCIuL2N1c3RvbV9mdW5jdGlvbnMuUiIpDQpgYGANCg0KPGJyPg0KDQojIyBuZWNlc3NhcnkgcGFja2FnZXMNCg0KLSBgdGlkeXZlcnNlYDogZGF0YSB3cmFuZ2xpbmcNCi0gYGlncmFwaGA6IGdlbmVyYXRlIGFuZCB2aXN1YWxpemUgZ3JhcGhzDQotIGBwYXJhbGxlbGA6IHBhcmFsbGVsIGNvbXB1dGluZyB0byBzcGVlZCB1cCBzaW11bGF0aW9uDQotIGBmb3JlYWNoYDogbG9vcGluZyBpbiBwYXJhbGxlbA0KLSBgZG9QYXJhbGxlbGA6IHBhcmFsbGVsIGJhY2tlbmQgZm9yIGBmb3JlYWNoYA0KLSBgZ2dwbG90MmA6IGRhdGEgdmlzdWFsaXphdGlvbg0KLSBgZ2doNHhgOiBoYWNrcyBmb3IgYGdncGxvdDJgDQotIGBnZ3B1YnJgOiBtYWtlIHZpc3VhbGl6YXRpb25zIHB1YmxpY2F0aW9uLXJlYWR5DQoNCmBgYHtyLCBwYWNrYWdlc30NCnBhY2thZ2VzID0gYygidGlkeXZlcnNlIiwgImlncmFwaCIsICJnZ3Bsb3QyIiwgInBhcmFsbGVsIiwgImRvUGFyYWxsZWwiLCAiZm9yZWFjaCIsICJnZ2g0eCIsICJnZ3B1YnIiLCAicGxvdGx5IiwgIlJDb2xvckJyZXdlciIsICJncmlkIiwgImdyaWRFeHRyYSIsICJwYXRjaHdvcmsiLCAiZ2dwbG90aWZ5IiwgImdncmFwaCIsICJnZ2FuaW1hdGUiLCAiUkNvbG9yQnJld2VyIiwNCiAgICAiZ2d0ZXh0IiwgIm1hZ2ljayIsICJqc29ubGl0ZSIpDQoNCmludmlzaWJsZShmcGFja2FnZS5jaGVjayhwYWNrYWdlcykpDQpybShwYWNrYWdlcykNCmBgYA0KDQotLS0NCg0KIyBFeHBlcmltZW50YWwgY29uZGl0aW9ucw0KDQoNCmBgYHtyLCBlY2hvPVRSVUUsIGZpZy5zaG93PSdob2xkJywgZmlnLmtlZXA9J2FsbCcsIG1lc3NhZ2U9RkFMU0UsIGZpZy5oZWlnaHQ9NX0NCiMgcGljayBvbmUgY29uZmlndXJhdGlvbiB0aGF0IGxpa2VseSBsZWFkcyB0byBhbiB1bnBvcHVsYXIgbm9ybSwgYW5kIGV4cGxvcmUgbXVsdGlwbGUgJ3NlZWRzJzoNCnJ1bl9vbmVfc2VlZCA8LSBmdW5jdGlvbigNCiAgaSwNCiAgYmFzZV9zZWVkID0gMTI1MzI4MTEyMywNCiAgcGFyYW1zID0gbGlzdChzID0gMTUsIGUgPSAxMCwgdyA9IDQwLCB6ID0gNTAsIGxhbWJkYTEgPSA1LCBsYW1iZGEyID0gMS44KSwNCiAgDQogICMgdHdlYWsgbmV0d29yaw0KICBrX21pbiA9IDIsIA0KICBrX21heCA9IDksDQogIGFscGhhID0gMi4xLA0KICByaG8gPSAwLjQsDQogIHIgPSAtMC4xLA0KICANCiAgIyByZXRyaWV2ZSBuZXR3b3JrDQogIHJldHVybl9uZXR3b3JrID0gRkFMU0UNCiAgDQopIHsNCiAgIyBkZXJpdmVkIHNlZWQgZm9yIHRoaXMgcnVuDQogIHNlZWRfaSA8LSBiYXNlX3NlZWQgKyBpDQogIHNldC5zZWVkKHNlZWRfaSkNCg0KICAjIC0tLSBuZXR3b3JrIGNyZWF0aW9uIC0tLQ0KICBkZWdzZXEgPC0gZmRlZ3NlcSgNCiAgICBuICAgICAgPSAxMCwNCiAgICBhbHBoYSAgPSBhbHBoYSwNCiAgICBrX21pbiAgPSBrX21pbiwNCiAgICBrX21heCAgPSBrX21heCwNCiAgICBkaXN0ICAgPSAibG9nLW5vcm1hbCIsICN1c2UgbG9nLW5vcm1hbCANCiAgICBzZWVkICAgPSBzZWVkX2kNCiAgKQ0KDQogIG5ldHdvcmsgPC0gc2FtcGxlX2RlZ3NlcShkZWdzZXEsIG1ldGhvZCA9ICJ2bCIpDQogIA0KICBWKG5ldHdvcmspJHJvbGUgPC0gc2FtcGxlKA0KICAgIGMocmVwKCJ0cmVuZHNldHRlciIsIDIpLCByZXAoImNvbmZvcm1pc3QiLCA4KSkNCiAgKQ0KICANCg0KICByZXdpcmVkX25ldHdvcmsgPC0gZnJld2lyZV9yKG5ldHdvcmssIHIsIHZlcmJvc2UgPSBGQUxTRSwgbWF4X2l0ZXIgPSAxZTUpDQogIGZpbmFsX25ldHdvcmsgICA8LSBmc3dhcF9yaG8ocmV3aXJlZF9uZXR3b3JrLCByaG8sIHZlcmJvc2UgPSBGQUxTRSwgbWF4X2l0ZXIgPSAxZTQpDQogIA0KICAjIC0tLSBzdGF0cyAtLS0NCiAgc3RhdHMgPC0gbGlzdCgNCiAgICBydW4gICAgICAgICAgID0gaSwNCiAgICBzZWVkICAgICAgICAgID0gc2VlZF9pLA0KICAgIG51bV9ub2RlcyAgICAgPSB2Y291bnQoZmluYWxfbmV0d29yayksDQogICAgbnVtX2VkZ2VzICAgICA9IGVjb3VudChmaW5hbF9uZXR3b3JrKSwNCiAgICBhdmdfZGVncmVlICAgID0gbWVhbihkZWdyZWUoZmluYWxfbmV0d29yaykpLA0KICAgIHNkX2RlZ3JlZSAgICAgPSBzZChkZWdyZWUoZmluYWxfbmV0d29yaykpLA0KICAgIG5ldF9kZW5zaXR5ICAgPSBlZGdlX2RlbnNpdHkoZmluYWxfbmV0d29yayksDQogICAgbmV0X2RpYW1ldGVyICA9IGRpYW1ldGVyKGZpbmFsX25ldHdvcmssIGRpcmVjdGVkID0gRkFMU0UsIHVuY29ubmVjdGVkID0gVFJVRSksDQogICAgYXZnX3BhdGhfbGVuICA9IGF2ZXJhZ2UucGF0aC5sZW5ndGgoZmluYWxfbmV0d29yaywgZGlyZWN0ZWQgPSBGQUxTRSksDQogICAgY2x1c3RfY29lZmYgICA9IHRyYW5zaXRpdml0eShmaW5hbF9uZXR3b3JrLCB0eXBlID0gImdsb2JhbCIpLA0KICAgIGFzc29ydF9kZWcgICAgPSBhc3NvcnRhdGl2aXR5X2RlZ3JlZShmaW5hbF9uZXR3b3JrKSwNCiAgICBkZWdfdHJhaXRfY29yID0gZmRlZ3RyYWl0Y29yKGZpbmFsX25ldHdvcmspJGNvciwNCiAgICBjb21wb25lbnRzICAgID0gY29tcG9uZW50cyhmaW5hbF9uZXR3b3JrKSRubw0KICApDQogIA0KICBmcGxvdF9ncmFwaChmaW5hbF9uZXR3b3JrLCBsYXlvdXQgPSBsYXlvdXRfd2l0aF9mcihmaW5hbF9uZXR3b3JrKSkgDQogIA0KICANCiAgIyAtLS0gaW5pdGlhbCBhY3Rpb25zIC0tLQ0KICBWKGZpbmFsX25ldHdvcmspJGFjdGlvbiA8LSBpZmVsc2UoVihmaW5hbF9uZXR3b3JrKSRyb2xlID09ICJ0cmVuZHNldHRlciIsIDEsIDApDQogIA0KICAjIC0tLSBkZXRlcm1pbmlzdGljIHNpbXVsYXRpb24gLS0tDQogIHNpbV9kZXQgPC0gZmFibSgNCiAgICBuZXR3b3JrICAgICAgPSBmaW5hbF9uZXR3b3JrLA0KICAgIHBhcmFtcyAgICAgICA9IHBhcmFtcywNCiAgICBtYXhfcm91bmRzICAgPSA1MCwNCiAgICBtaV90aHJlc2hvbGQgPSAwLjQ5LA0KICAgIGNob2ljZV9ydWxlICA9ICJkZXRlcm1pbmlzdGljIiwNCiAgICBwbG90ICAgICAgICAgPSBUUlVFLA0KICAgIGhpc3RvcmllcyAgICA9IFRSVUUNCiAgKQ0KICANCiAgIyBnZW5lcmF0ZSB0aGUgZ2lmIGZvciB0aGUgY3VycmVudCBuZXR3b3JrDQogIGdpZl9maWxlbmFtZSA8LSBwYXN0ZTAoIi4vZmlndXJlcy9hbmltYXRpb25fbmV0d29ya18iLCBzZWVkX2ksICIuZ2lmIikNCiAgZ2lmX3BhdGggPC0gZm5ldHdvcmtnaWYoZmluYWxfbmV0d29yaywgc2ltX2RldCRkZWNpc2lvbl9oaXN0b3J5LCByb3VuZHMgPSBzaW1fZGV0JGVxdWlsaWJyaXVtJHJvdW5kLCBvdXRwdXRfZGlyID0gIi4vZmlndXJlcyIpDQogICMgcmVuYW1lIHRoZSBnaWYgdG8gbWF0Y2ggdGhlIG5hbWluZyBwYXR0ZXJuDQogIGZpbGUucmVuYW1lKGdpZl9wYXRoLCBnaWZfZmlsZW5hbWUpDQoNCiAgaWYgKCFpcy5udWxsKHNpbV9kZXQkcGxvdCkpIHsNCiAgICBwcmludChzaW1fZGV0JHBsb3QpDQogIH0NCiAgDQogICMgLS0tIHByb2JhYmlsaXN0aWMgc2ltdWxhdGlvbiAtLS0NCiAgc2ltX3Byb2IgPC0gZmFibSgNCiAgICBuZXR3b3JrICAgICAgICAgICAgICAgID0gZmluYWxfbmV0d29yaywNCiAgICBwYXJhbXMgICAgICAgICAgICAgICAgID0gcGFyYW1zLA0KICAgIG1heF9yb3VuZHMgICAgICAgICAgICAgPSAxMDAsDQogICAgbWlfdGhyZXNob2xkICAgICAgICAgICA9IDAuNDksDQogICAgY2hvaWNlX3J1bGUgICAgICAgICAgICA9ICJwcm9iYWJpbGlzdGljIiwNCiAgICBzdGFibGVfd2luZG93ICAgICAgICAgID0gOCwgICAjIHRoZSBsZW5ndGggb2YgdGhlIHdpbmRvdyBvZiBhZG9wdGlvbiB2YWx1ZXMNCiAgICByZXF1aXJlZF9zdGFibGVfcm91bmRzID0gMjAsICMgbnVtYmVyIG9mIHdpbmRvd3MgbmVlZGVkIHRvIGRlY2xhcmUgZXF1aWxpYnJpdW0NCiAgICBwbG90ICAgICAgICAgICAgICAgICAgID0gVFJVRQ0KICApDQogIGlmICghaXMubnVsbChzaW1fcHJvYiRwbG90KSkgew0KICAgIHByaW50KHNpbV9wcm9iJHBsb3QpDQogIH0NCiAgDQogICByZXN1bHQgPC0gbGlzdCgNCiAgICBzZWdyZWdhdGlvbl9kZXQgID0gc2ltX2RldCRlcXVpbGlicml1bSRzZWdyZWdhdGlvbiwNCiAgICBzZWdyZWdhdGlvbl9wcm9iID0gc2ltX3Byb2IkZXF1aWxpYnJpdW0kc2VncmVnYXRpb24sDQogICAgc3RhdHMgICAgICAgICAgICA9IHN0YXRzDQogICkNCiAgDQogIGlmIChyZXR1cm5fbmV0d29yaykgew0KICAgIHJlc3VsdCRuZXR3b3JrIDwtIGZpbmFsX25ldHdvcmsNCiAgfQ0KICANCiAgcmVzdWx0DQp9DQoNCiMjIyMNCg0KcnVuX29uZV9zdyA8LSBmdW5jdGlvbigNCiAgaSwNCiAgYmFzZV9zZWVkID0gMTI1MzI4MTEyMywNCiAgbW9kZWwgPSAid2F0dHMtc3Ryb2dhdHoiLA0KICBiZXRhID0gMCwNCiAgbmVpID0gMywNCiAgY2xpcXVlX3NpemUgPSA1LA0KICBwbWluID0gMC4xLA0KICANCiAgcGFyYW1zID0gbGlzdChzID0gMTUsIGUgPSAxMCwgdyA9IDQwLCB6ID0gNTAsIGxhbWJkYTEgPSA1LCBsYW1iZGEyID0gMS44KSwNCiAgDQogICMgcmV0cmlldmUgbmV0d29yaw0KICByZXR1cm5fbmV0d29yayA9IEZBTFNFDQogIA0KKSB7DQogICMgZGVyaXZlZCBzZWVkIGZvciB0aGlzIHJ1bg0KICBzZWVkX2kgPC0gYmFzZV9zZWVkICsgaQ0KICBzZXQuc2VlZChzZWVkX2kpDQoNCiAgaWYgKG1vZGVsID09ICJ3YXR0cy1zdHJvZ2F0eiIpIHsNCiAgICBuZXR3b3JrIDwtIHNhbXBsZV9zbWFsbHdvcmxkKGRpbSA9IDEsIHNpemUgPSAxMCwgbmVpID0gMywgcCA9IGJldGEpIH0NCiAgZWxzZSBpZiAobW9kZWwgPT0gImNhdmVtYW4iKSB7DQogICAgbmV0d29yayA8LSBzaW11bGF0ZV9jYXZlbWFuKG4gPSAxMCwgY2xpcXVlX3NpemUgPSBjbGlxdWVfc2l6ZSkgDQogIH0NCg0KICBWKG5ldHdvcmspJHJvbGUgPC0gc2FtcGxlKA0KICAgIGMocmVwKCJ0cmVuZHNldHRlciIsIDIpLCByZXAoImNvbmZvcm1pc3QiLCA4KSkNCiAgKQ0KICANCiAgDQogIGZpbmFsX25ldHdvcmsgPC0gbmV0d29yaw0KDQogIA0KICAjIC0tLSBzdGF0cyAtLS0NCiAgc3RhdHMgPC0gbGlzdCgNCiAgICBydW4gICAgICAgICAgID0gaSwNCiAgICBzZWVkICAgICAgICAgID0gc2VlZF9pLA0KICAgIG51bV9ub2RlcyAgICAgPSB2Y291bnQoZmluYWxfbmV0d29yayksDQogICAgbnVtX2VkZ2VzICAgICA9IGVjb3VudChmaW5hbF9uZXR3b3JrKSwNCiAgICBhdmdfZGVncmVlICAgID0gbWVhbihkZWdyZWUoZmluYWxfbmV0d29yaykpLA0KICAgIHNkX2RlZ3JlZSAgICAgPSBzZChkZWdyZWUoZmluYWxfbmV0d29yaykpLA0KICAgIG5ldF9kZW5zaXR5ICAgPSBlZGdlX2RlbnNpdHkoZmluYWxfbmV0d29yayksDQogICAgbmV0X2RpYW1ldGVyICA9IGRpYW1ldGVyKGZpbmFsX25ldHdvcmssIGRpcmVjdGVkID0gRkFMU0UsIHVuY29ubmVjdGVkID0gVFJVRSksDQogICAgYXZnX3BhdGhfbGVuICA9IGF2ZXJhZ2UucGF0aC5sZW5ndGgoZmluYWxfbmV0d29yaywgZGlyZWN0ZWQgPSBGQUxTRSksDQogICAgY2x1c3RfY29lZmYgICA9IHRyYW5zaXRpdml0eShmaW5hbF9uZXR3b3JrLCB0eXBlID0gImdsb2JhbCIpLA0KICAgIGFzc29ydF9kZWcgICAgPSBhc3NvcnRhdGl2aXR5X2RlZ3JlZShmaW5hbF9uZXR3b3JrKSwNCiAgICBkZWdfdHJhaXRfY29yID0gZmRlZ3RyYWl0Y29yKGZpbmFsX25ldHdvcmspJGNvciwNCiAgICBjb21wb25lbnRzICAgID0gY29tcG9uZW50cyhmaW5hbF9uZXR3b3JrKSRubw0KICApDQogIA0KICBzdGF0c19kZiA8LSBkYXRhLmZyYW1lKA0KICAgIE1ldHJpYyA9IG5hbWVzKHN0YXRzKSwNCiAgICBWYWx1ZSAgPSB1bmxpc3Qoc3RhdHMpLA0KICAgIHJvdy5uYW1lcyA9IE5VTEwNCiAgKQ0KICANCiAgI3ByaW50KHN0YXRzX2RmKQ0KICBmcGxvdF9ncmFwaChmaW5hbF9uZXR3b3JrLCBsYXlvdXQgPSBsYXlvdXQua2FtYWRhLmthd2FpKGZpbmFsX25ldHdvcmspKQ0KICANCg0KICAjIC0tLSBpbml0aWFsIGFjdGlvbnMgLS0tDQogIFYoZmluYWxfbmV0d29yaykkYWN0aW9uIDwtIGlmZWxzZShWKGZpbmFsX25ldHdvcmspJHJvbGUgPT0gInRyZW5kc2V0dGVyIiwgMSwgMCkNCiAgDQogICMgLS0tIGRldGVybWluaXN0aWMgc2ltdWxhdGlvbiAtLS0NCiAgc2ltX2RldCA8LSBmYWJtKA0KICAgIG5ldHdvcmsgICAgICA9IGZpbmFsX25ldHdvcmssDQogICAgcGFyYW1zICAgICAgID0gcGFyYW1zLA0KICAgIG1heF9yb3VuZHMgICA9IDUwLA0KICAgIG1pX3RocmVzaG9sZCA9IDAuNDksDQogICAgY2hvaWNlX3J1bGUgID0gImRldGVybWluaXN0aWMiLA0KICAgIHBsb3QgICAgICAgICA9IFRSVUUsDQogICAgaGlzdG9yaWVzICAgID0gVFJVRQ0KICApDQoNCiAgIyBnZW5lcmF0ZSB0aGUgZ2lmIGZvciB0aGUgY3VycmVudCBuZXR3b3JrDQogIGdpZl9maWxlbmFtZSA8LSBwYXN0ZTAoIi4vZmlndXJlcy9hbmltYXRpb25fbmV0d29ya18iLCBzZWVkX2ksICIuZ2lmIikNCiAgZ2lmX3BhdGggPC0gZm5ldHdvcmtnaWYoZmluYWxfbmV0d29yaywgc2ltX2RldCRkZWNpc2lvbl9oaXN0b3J5LCByb3VuZHMgPSBzaW1fZGV0JGVxdWlsaWJyaXVtJHJvdW5kLCBvdXRwdXRfZGlyID0gIi4vZmlndXJlcyIpDQogICMgcmVuYW1lIHRoZSBnaWYgdG8gbWF0Y2ggdGhlIG5hbWluZyBwYXR0ZXJuDQogIGZpbGUucmVuYW1lKGdpZl9wYXRoLCBnaWZfZmlsZW5hbWUpDQogIA0KICANCiAgaWYgKCFpcy5udWxsKHNpbV9kZXQkcGxvdCkpIHsNCiAgICBwcmludChzaW1fZGV0JHBsb3QpDQogIH0NCiAgDQogICMgLS0tIHByb2JhYmlsaXN0aWMgc2ltdWxhdGlvbiAtLS0NCiAgc2ltX3Byb2IgPC0gZmFibSgNCiAgICBuZXR3b3JrICAgICAgICAgICAgICAgID0gZmluYWxfbmV0d29yaywNCiAgICBwYXJhbXMgICAgICAgICAgICAgICAgID0gcGFyYW1zLA0KICAgIG1heF9yb3VuZHMgICAgICAgICAgICAgPSAxMDAsDQogICAgbWlfdGhyZXNob2xkICAgICAgICAgICA9IDAuNDksDQogICAgY2hvaWNlX3J1bGUgICAgICAgICAgICA9ICJwcm9iYWJpbGlzdGljIiwNCiAgICBzdGFibGVfd2luZG93ICAgICAgICAgID0gOCwgICAjIHRoZSBsZW5ndGggb2YgdGhlIHdpbmRvdyBvZiBhZG9wdGlvbiB2YWx1ZXMNCiAgICByZXF1aXJlZF9zdGFibGVfcm91bmRzID0gMjAsICMgbnVtYmVyIG9mIHdpbmRvd3MgbmVlZGVkIHRvIGRlY2xhcmUgZXF1aWxpYnJpdW0NCiAgICBwbG90ICAgICAgICAgICAgICAgICAgID0gVFJVRQ0KICApDQogIGlmICghaXMubnVsbChzaW1fcHJvYiRwbG90KSkgew0KICAgIHByaW50KHNpbV9wcm9iJHBsb3QpDQogIH0NCiAgDQogIA0KICByZXN1bHQgPC0gbGlzdCgNCiAgICBzZWdyZWdhdGlvbl9kZXQgID0gc2ltX2RldCRlcXVpbGlicml1bSRzZWdyZWdhdGlvbiwNCiAgICBzZWdyZWdhdGlvbl9wcm9iID0gc2ltX3Byb2IkZXF1aWxpYnJpdW0kc2VncmVnYXRpb24sDQogICAgc3RhdHMgICAgICAgICAgICA9IHN0YXRzDQogICkNCiAgDQogIGlmIChyZXR1cm5fbmV0d29yaykgew0KICAgIHJlc3VsdCRuZXR3b3JrIDwtIGZpbmFsX25ldHdvcmsNCiAgfQ0KICANCiAgcmVzdWx0DQp9DQpgYGANCg0KDQpgYGB7cn0NCnRlc3QgPC0gcnVuX29uZV9zZWVkKDEsIGtfbWluID0gMiwga19tYXggPSA5LCBhbHBoYSA9IDIuMSwgcmhvID0gMC43LCByID0gLTAuMSwgcmV0dXJuX25ldHdvcmsgPSBUUlVFKQ0KDQpiYXNlID0gMTI1MzI4MTEyMw0Kc2VlZCA9IGJhc2UgKyAxDQpgYGAgDQoNCmBgYHtyLCBldmFsID0gRkFMU0V9DQojIHVzZSB0aGlzIGFzIHRoZSBuZXR3b3JrIHN0cnVjdHVyZSBmb3IgYW4gb3RyZWUgc2Vzc2lvbjoNCiNjYmluZChkZWdyZWUodGVzdCRuZXR3b3JrKSxWKHRlc3QkbmV0d29yaykkcm9sZSkNCg0KIyBjb252ZXJ0IHRvIGFkamFjZW5jeSBtYXRyaXgNCmFkal9tYXRyaXggPC0gYXMubWF0cml4KGFzX2FkamFjZW5jeV9tYXRyaXgodGVzdCRuZXR3b3JrKSkNCg0KI2dldCByb2xlcw0Kcm9sZV92ZWN0b3IgPC0gaWZlbHNlKFYodGVzdCRuZXR3b3JrKSRyb2xlID09ICJ0cmVuZHNldHRlciIsMSwwKQ0KIyBjcmVhdGUgYSBsaXN0IHRvIHN0b3JlIHRoZSBuZXR3b3JrIGRhdGENCm5ldCA8LSBsaXN0KGFkal9tYXRyaXggPSBhZGpfbWF0cml4LCByb2xlX3ZlY3RvciA9IHJvbGVfdmVjdG9yKQ0KIyBzYXZlIHRoZSBsaXN0IGFzIGEgSlNPTiBmaWxlDQp3cml0ZV9qc29uKG5ldCwgIm5ldHdvcmtfdGVzdF9uMTAuanNvbiIpDQpgYGANCg0KDQpgYGB7cn0NCiNyYW5kb20NCnRlc3QgPC0gcnVuX29uZV9zdyhpPTE1LCBiZXRhPTEsIHBtaW49LjE1LCByZXR1cm5fbmV0d29yayA9IFRSVUUgKQ0KI2ZwbG90X2dyYXBoKHRlc3QkbmV0d29yaykNCmBgYA0KYGBge3IsZXZhbD1GQUxTRX0NCiMgdXNlIHRoaXMgYXMgdGhlIG5ldHdvcmsgc3RydWN0dXJlIGZvciBhbiBvdHJlZSBzZXNzaW9uOg0KI2NiaW5kKGRlZ3JlZSh0ZXN0JG5ldHdvcmspLFYodGVzdCRuZXR3b3JrKSRyb2xlKQ0KDQojIGNvbnZlcnQgdG8gYWRqYWNlbmN5IG1hdHJpeA0KYWRqX21hdHJpeCA8LSBhcy5tYXRyaXgoYXNfYWRqYWNlbmN5X21hdHJpeCh0ZXN0JG5ldHdvcmspKQ0KDQojZ2V0IHJvbGVzDQpyb2xlX3ZlY3RvciA8LSBpZmVsc2UoVih0ZXN0JG5ldHdvcmspJHJvbGUgPT0gInRyZW5kc2V0dGVyIiwxLDApDQojIGNyZWF0ZSBhIGxpc3QgdG8gc3RvcmUgdGhlIG5ldHdvcmsgZGF0YQ0KbmV0IDwtIGxpc3QoYWRqX21hdHJpeCA9IGFkal9tYXRyaXgsIHJvbGVfdmVjdG9yID0gcm9sZV92ZWN0b3IpDQojIHNhdmUgdGhlIGxpc3QgYXMgYSBKU09OIGZpbGUNCndyaXRlX2pzb24obmV0LCAibmV0d29ya190ZXN0X24xMF9yYW5kb20uanNvbiIpDQpgYGANCg==</div>
+<div id="rmd-source-code">LS0tDQp0aXRsZTogIkV4cGVyaW1lbnQiDQpiaWJsaW9ncmFwaHk6IHJlZmVyZW5jZXMuYmliDQpsaW5rLWNpdGF0aW9uczogdHJ1ZQ0KZGF0ZTogIkxhc3QgY29tcGlsZWQgb24gYHIgZm9ybWF0KFN5cy50aW1lKCksICclZC0lbS0lWScpYCINCm91dHB1dDogDQogIGh0bWxfZG9jdW1lbnQ6DQogICAgc2VsZl9jb250YWluZWQ6IHRydWUNCiAgICBjc3M6IHR3ZWFrcy5jc3MNCiAgICB0b2M6IHRydWUNCiAgICB0b2NfZmxvYXQ6IHRydWUNCiAgICBudW1iZXJfc2VjdGlvbnM6IHRydWUNCiAgICB0b2NfZGVwdGg6IDQNCiAgICBjb2RlX2ZvbGRpbmc6IHNob3cNCiAgICBjb2RlX2Rvd25sb2FkOiB5ZXMNCi0tLQ0KDQpgYGB7ciwgZ2xvYmFsc2V0dGluZ3MsIGVjaG89RkFMU0UsIHdhcm5pbmc9RkFMU0UsIHJlc3VsdHM9J2hpZGUnLCBtZXNzYWdlPUZBTFNFfQ0KbGlicmFyeShrbml0cikNCmxpYnJhcnkodGlkeXZlcnNlKQ0Ka25pdHI6Om9wdHNfY2h1bmskc2V0KGVjaG8gPSBUUlVFKQ0Kb3B0c19jaHVuayRzZXQodGlkeS5vcHRzPWxpc3Qod2lkdGguY3V0b2ZmPTEwMCksdGlkeT1UUlVFLCB3YXJuaW5nID0gRkFMU0UsIG1lc3NhZ2UgPSBGQUxTRSxjb21tZW50ID0gIiM+IiwgY2FjaGU9VFJVRSwgY2xhc3Muc291cmNlPWMoInRlc3QiKSwgY2xhc3Mub3V0cHV0PWMoInRlc3QzIikpDQpvcHRpb25zKHdpZHRoID0gMTAwKQ0KcmdsOjpzZXR1cEtuaXRyKCkNCg0KY29sb3JpemUgPC0gZnVuY3Rpb24oeCwgY29sb3IpIHtzcHJpbnRmKCI8c3BhbiBzdHlsZT0nY29sb3I6ICVzOyc+JXM8L3NwYW4+IiwgY29sb3IsIHgpIH0NCmBgYA0KDQpgYGB7ciBrbGlwcHksIGVjaG89RkFMU0UsIGluY2x1ZGU9VFJVRX0NCmtsaXBweTo6a2xpcHB5KHBvc2l0aW9uID0gYygndG9wJywgJ3JpZ2h0JykpDQoja2xpcHB5OjprbGlwcHkoY29sb3IgPSAnZGFya3JlZCcpDQoja2xpcHB5OjprbGlwcHkodG9vbHRpcF9tZXNzYWdlID0gJ0NsaWNrIHRvIGNvcHknLCB0b29sdGlwX3N1Y2Nlc3MgPSAnRG9uZScpDQpgYGANCg0KLS0tDQoNCiMgR2V0dGluZyBzdGFydGVkDQoNClRvIGNvcHkgdGhlIGNvZGUsIGNsaWNrIHRoZSBidXR0b24gaW4gdGhlIHVwcGVyIHJpZ2h0IGNvcm5lciBvZiB0aGUgY29kZS1jaHVua3MuDQoNCiMjIGNsZWFuIHVwDQoNCmBgYHtyLCBjbGVhbl91cCwgcmVzdWx0cz0naGlkZSd9DQpybShsaXN0PWxzKCkpDQpnYygpDQpgYGANCg0KPGJyPg0KDQojIyBjdXN0b20gZnVuY3Rpb25zDQoNCldlIGRlZmluZWQgYSBudW1iZXIgY3VzdG9tIGZ1bmN0aW9ucywgYXQgYHIgeGZ1bjo6ZW1iZWRfZmlsZSgiLi9jdXN0b21fZnVuY3Rpb25zLlIiKWAuDQoNCmBgYHtyLCBjdXN0b21fZnVuY3Rpb25zfQ0Kc291cmNlKCIuL2N1c3RvbV9mdW5jdGlvbnMuUiIpDQpgYGANCg0KPGJyPg0KDQojIyBuZWNlc3NhcnkgcGFja2FnZXMNCg0KLSBgdGlkeXZlcnNlYDogZGF0YSB3cmFuZ2xpbmcNCi0gYGlncmFwaGA6IGdlbmVyYXRlIGFuZCB2aXN1YWxpemUgZ3JhcGhzDQotIGBwYXJhbGxlbGA6IHBhcmFsbGVsIGNvbXB1dGluZyB0byBzcGVlZCB1cCBzaW11bGF0aW9uDQotIGBmb3JlYWNoYDogbG9vcGluZyBpbiBwYXJhbGxlbA0KLSBgZG9QYXJhbGxlbGA6IHBhcmFsbGVsIGJhY2tlbmQgZm9yIGBmb3JlYWNoYA0KLSBgZ2dwbG90MmA6IGRhdGEgdmlzdWFsaXphdGlvbg0KLSBgZ2doNHhgOiBoYWNrcyBmb3IgYGdncGxvdDJgDQotIGBnZ3B1YnJgOiBtYWtlIHZpc3VhbGl6YXRpb25zIHB1YmxpY2F0aW9uLXJlYWR5DQoNCmBgYHtyLCBwYWNrYWdlc30NCnBhY2thZ2VzID0gYygidGlkeXZlcnNlIiwgImlncmFwaCIsICJnZ3Bsb3QyIiwgInBhcmFsbGVsIiwgImRvUGFyYWxsZWwiLCAiZm9yZWFjaCIsICJnZ2g0eCIsICJnZ3B1YnIiLCAicGxvdGx5IiwgIlJDb2xvckJyZXdlciIsICJncmlkIiwgImdyaWRFeHRyYSIsICJwYXRjaHdvcmsiLCAiZ2dwbG90aWZ5IiwgImdncmFwaCIsICJnZ2FuaW1hdGUiLCAiUkNvbG9yQnJld2VyIiwNCiAgICAiZ2d0ZXh0IiwgIm1hZ2ljayIsICJqc29ubGl0ZSIpDQoNCmludmlzaWJsZShmcGFja2FnZS5jaGVjayhwYWNrYWdlcykpDQpybShwYWNrYWdlcykNCmBgYA0KDQotLS0NCg0KIyBFeHBlcmltZW50YWwgY29uZGl0aW9ucw0KDQojIyAxLiBoZWF2eS10YWlsZWQgbmV0d29yayB3aXRoIGNlbnRyYWwgbWlub3JpdGllcw0KDQpMZXQncyB0YWtlIGEgbGlrZWx5LWNhc2UgZm9yIGFuIHVucG9wdWxhciBub3JtLCBnZW5lcmF0ZSBtdWx0aXBsZSBuZXR3b3JrcyBvZiB0aGlzIHRhcmdldCwgYW5kIHNpbXVsYXRlIHRoZSBlbWVyZ2VuY2Ugb2YgdGhlIG5vcm0gZm9sbG93aW5nIGEgZGV0ZXJtaW5pc3RpYyBhbmQgcHJvYmFiaWxpc3RpYyBjaG9pY2UgbW9kZWw6DQoNCmBgYHtyLCBlY2hvPVRSVUUsIGZpZy5zaG93PSdob2xkJywgZmlnLmtlZXA9J2FsbCcsIG1lc3NhZ2U9RkFMU0UsIGZpZy5oZWlnaHQ9NX0NCiMgcGljayBvbmUgY29uZmlndXJhdGlvbiB0aGF0IGxpa2VseSBsZWFkcyB0byBhbiB1bnBvcHVsYXIgbm9ybSwgYW5kIGV4cGxvcmUgbXVsdGlwbGUgJ3NlZWRzJzoNCnJ1bl9vbmVfc2VlZCA8LSBmdW5jdGlvbigNCiAgaSwNCiAgYmFzZV9zZWVkID0gMjI1MzI4MSwNCiAgcGFyYW1zID0gbGlzdChzID0gMTUsIGUgPSAxMCwgdyA9IDQwLCB6ID0gNTAsIGxhbWJkYTEgPSA1LCBsYW1iZGEyID0gMS44KSwNCiAgDQogICMgdHdlYWsgbmV0d29yaw0KICBrX21pbiA9IDIsIA0KICBrX21heCA9IDIwLA0KICBhbHBoYSA9IDIuNCwNCiAgcmhvID0gMC40LA0KICByID0gLTAuMSwNCiAgDQogICMgcmV0cmlldmUgbmV0d29yaw0KICByZXR1cm5fbmV0d29yayA9IEZBTFNFDQogIA0KKSB7DQogICMgZGVyaXZlZCBzZWVkIGZvciB0aGlzIHJ1bg0KICBzZWVkX2kgPC0gYmFzZV9zZWVkICsgaQ0KICBzZXQuc2VlZChzZWVkX2kpDQoNCiAgIyAtLS0gbmV0d29yayBjcmVhdGlvbiAtLS0NCiAgZGVnc2VxIDwtIGZkZWdzZXEoDQogICAgbiAgICAgID0gNTAsDQogICAgYWxwaGEgID0gYWxwaGEsDQogICAga19taW4gID0ga19taW4sDQogICAga19tYXggID0ga19tYXgsDQogICAgZGlzdCAgID0gImxvZy1ub3JtYWwiLCAjdXNlIGxvZy1ub3JtYWwgDQogICAgc2VlZCAgID0gc2VlZF9pDQogICkNCg0KICBuZXR3b3JrIDwtIHNhbXBsZV9kZWdzZXEoZGVnc2VxLCBtZXRob2QgPSAidmwiKQ0KICANCiAgVihuZXR3b3JrKSRyb2xlIDwtIHNhbXBsZSgNCiAgICBjKHJlcCgidHJlbmRzZXR0ZXIiLCA1KSwgcmVwKCJjb25mb3JtaXN0IiwgNDUpKQ0KICApDQogIA0KDQogIHJld2lyZWRfbmV0d29yayA8LSBmcmV3aXJlX3IobmV0d29yaywgciwgdmVyYm9zZSA9IEZBTFNFLCBtYXhfaXRlciA9IDFlNSkNCiAgZmluYWxfbmV0d29yayAgIDwtIGZzd2FwX3JobyhyZXdpcmVkX25ldHdvcmssIHJobywgdmVyYm9zZSA9IEZBTFNFLCBtYXhfaXRlciA9IDFlNCkNCiAgDQogICMgLS0tIHN0YXRzIC0tLQ0KICBzdGF0cyA8LSBsaXN0KA0KICAgIHJ1biAgICAgICAgICAgPSBpLA0KICAgIHNlZWQgICAgICAgICAgPSBzZWVkX2ksDQogICAgbnVtX25vZGVzICAgICA9IHZjb3VudChmaW5hbF9uZXR3b3JrKSwNCiAgICBudW1fZWRnZXMgICAgID0gZWNvdW50KGZpbmFsX25ldHdvcmspLA0KICAgIGF2Z19kZWdyZWUgICAgPSBtZWFuKGRlZ3JlZShmaW5hbF9uZXR3b3JrKSksDQogICAgc2RfZGVncmVlICAgICA9IHNkKGRlZ3JlZShmaW5hbF9uZXR3b3JrKSksDQogICAgbmV0X2RlbnNpdHkgICA9IGVkZ2VfZGVuc2l0eShmaW5hbF9uZXR3b3JrKSwNCiAgICBuZXRfZGlhbWV0ZXIgID0gZGlhbWV0ZXIoZmluYWxfbmV0d29yaywgZGlyZWN0ZWQgPSBGQUxTRSwgdW5jb25uZWN0ZWQgPSBUUlVFKSwNCiAgICBhdmdfcGF0aF9sZW4gID0gYXZlcmFnZS5wYXRoLmxlbmd0aChmaW5hbF9uZXR3b3JrLCBkaXJlY3RlZCA9IEZBTFNFKSwNCiAgICBjbHVzdF9jb2VmZiAgID0gdHJhbnNpdGl2aXR5KGZpbmFsX25ldHdvcmssIHR5cGUgPSAiZ2xvYmFsIiksDQogICAgYXNzb3J0X2RlZyAgICA9IGFzc29ydGF0aXZpdHlfZGVncmVlKGZpbmFsX25ldHdvcmspLA0KICAgIGRlZ190cmFpdF9jb3IgPSBmZGVndHJhaXRjb3IoZmluYWxfbmV0d29yaykkY29yLA0KICAgIGNvbXBvbmVudHMgICAgPSBjb21wb25lbnRzKGZpbmFsX25ldHdvcmspJG5vDQogICkNCiAgDQogIGZwbG90X2dyYXBoKGZpbmFsX25ldHdvcmssIGxheW91dCA9IGxheW91dF93aXRoX2ZyKGZpbmFsX25ldHdvcmspKSANCiAgDQogIA0KICAjIC0tLSBpbml0aWFsIGFjdGlvbnMgLS0tDQogIFYoZmluYWxfbmV0d29yaykkYWN0aW9uIDwtIGlmZWxzZShWKGZpbmFsX25ldHdvcmspJHJvbGUgPT0gInRyZW5kc2V0dGVyIiwgMSwgMCkNCiAgDQogICMgLS0tIGRldGVybWluaXN0aWMgc2ltdWxhdGlvbiAtLS0NCiAgc2ltX2RldCA8LSBmYWJtKA0KICAgIG5ldHdvcmsgICAgICA9IGZpbmFsX25ldHdvcmssDQogICAgcGFyYW1zICAgICAgID0gcGFyYW1zLA0KICAgIG1heF9yb3VuZHMgICA9IDUwLA0KICAgIG1pX3RocmVzaG9sZCA9IDAuNDksDQogICAgY2hvaWNlX3J1bGUgID0gImRldGVybWluaXN0aWMiLA0KICAgIHBsb3QgICAgICAgICA9IFRSVUUsDQogICAgaGlzdG9yaWVzICAgID0gVFJVRQ0KICApDQogIA0KICAjIGdlbmVyYXRlIHRoZSBnaWYgZm9yIHRoZSBjdXJyZW50IG5ldHdvcmsNCiAgZ2lmX2ZpbGVuYW1lIDwtIHBhc3RlMCgiLi9maWd1cmVzL2FuaW1hdGlvbl9uZXR3b3JrXyIsIHNlZWRfaSwgIi5naWYiKQ0KICBnaWZfcGF0aCA8LSBmbmV0d29ya2dpZihmaW5hbF9uZXR3b3JrLCBzaW1fZGV0JGRlY2lzaW9uX2hpc3RvcnksIHJvdW5kcyA9IHNpbV9kZXQkZXF1aWxpYnJpdW0kcm91bmQsIG91dHB1dF9kaXIgPSAiLi9maWd1cmVzIikNCiAgIyByZW5hbWUgdGhlIGdpZiB0byBtYXRjaCB0aGUgbmFtaW5nIHBhdHRlcm4NCiAgZmlsZS5yZW5hbWUoZ2lmX3BhdGgsIGdpZl9maWxlbmFtZSkNCg0KICBpZiAoIWlzLm51bGwoc2ltX2RldCRwbG90KSkgew0KICAgIHByaW50KHNpbV9kZXQkcGxvdCkNCiAgfQ0KICANCiAgIyAtLS0gcHJvYmFiaWxpc3RpYyBzaW11bGF0aW9uIC0tLQ0KICBzaW1fcHJvYiA8LSBmYWJtKA0KICAgIG5ldHdvcmsgICAgICAgICAgICAgICAgPSBmaW5hbF9uZXR3b3JrLA0KICAgIHBhcmFtcyAgICAgICAgICAgICAgICAgPSBwYXJhbXMsDQogICAgbWF4X3JvdW5kcyAgICAgICAgICAgICA9IDEwMCwNCiAgICBtaV90aHJlc2hvbGQgICAgICAgICAgID0gMC40OSwNCiAgICBjaG9pY2VfcnVsZSAgICAgICAgICAgID0gInByb2JhYmlsaXN0aWMiLA0KICAgIHN0YWJsZV93aW5kb3cgICAgICAgICAgPSA4LCAgICMgdGhlIGxlbmd0aCBvZiB0aGUgd2luZG93IG9mIGFkb3B0aW9uIHZhbHVlcw0KICAgIHJlcXVpcmVkX3N0YWJsZV9yb3VuZHMgPSAyMCwgIyBudW1iZXIgb2Ygd2luZG93cyBuZWVkZWQgdG8gZGVjbGFyZSBlcXVpbGlicml1bQ0KICAgIHBsb3QgICAgICAgICAgICAgICAgICAgPSBUUlVFDQogICkNCiAgaWYgKCFpcy5udWxsKHNpbV9wcm9iJHBsb3QpKSB7DQogICAgcHJpbnQoc2ltX3Byb2IkcGxvdCkNCiAgfQ0KICANCiAgIHJlc3VsdCA8LSBsaXN0KA0KICAgIHNlZ3JlZ2F0aW9uX2RldCAgPSBzaW1fZGV0JGVxdWlsaWJyaXVtJHNlZ3JlZ2F0aW9uLA0KICAgIHNlZ3JlZ2F0aW9uX3Byb2IgPSBzaW1fcHJvYiRlcXVpbGlicml1bSRzZWdyZWdhdGlvbiwNCiAgICBzdGF0cyAgICAgICAgICAgID0gc3RhdHMNCiAgKQ0KICANCiAgaWYgKHJldHVybl9uZXR3b3JrKSB7DQogICAgcmVzdWx0JG5ldHdvcmsgPC0gZmluYWxfbmV0d29yaw0KICB9DQogIA0KICByZXN1bHQNCn0NCg0KYGBgDQoNCg0KYGBge3J9DQp0ZXN0IDwtIHJ1bl9vbmVfc2VlZCgyLCBrX21pbiA9IDIsIGtfbWF4ID0gMjAsIGFscGhhID0gMi40LCByaG8gPSAwLjQsIHIgPSAtMC4xLCByZXR1cm5fbmV0d29yayA9IFRSVUUpDQoNCmJhc2UgPSAyMjUzMjgxDQpzZWVkID0gYmFzZSArIDINCg0KI2NiaW5kKGRlZ3JlZSh0ZXN0JG5ldHdvcmspLFYodGVzdCRuZXR3b3JrKSRyb2xlKQ0KDQojbGV0J3MgY2hlY2sgdGhlIGRpc3RyaWJ1dGlvbiBvZiBkaXN0YW5jZXMgdG8gJ3RyZW5kc2V0dGVycycsIGFtb25nICdjb25mb3JtaXN0cycNCmcgPC0gdGVzdCRuZXR3b3JrDQp0cmVuZCA8LSB3aGljaChWKGcpJHJvbGUgPT0gInRyZW5kc2V0dGVyIikNCmNvbmYgIDwtIHdoaWNoKFYoZykkcm9sZSA9PSAiY29uZm9ybWlzdCIpDQoNCiMgZGlzdGFuY2VzOiByb3dzID0gc291cmNlcyAodHJlbmRzZXR0ZXJzKSwgY29scyA9IGFsbCB2ZXJ0aWNlcw0KRCA8LSBkaXN0YW5jZXMoZywgdiA9IHRyZW5kLCB0byA9IFYoZyksIG1vZGUgPSAiYWxsIikNCkRjIDwtIERbLCBjb25mXSAja2VlcCBqdXN0IGNvbmZvcm1pc3RzDQoNCiMgY2FsY3VsYXRlIChhKSB0aGUgZGlzdGFuY2UgdG8gdGhlIG5lYXJlc3QgdHJlbmRzZXR0ZXIgYW5kIChiKSB0aGUgYXZlcmFnZSBkaXN0YW5jZSB0byB0cmVuZHNldHRlcnMsIGFjcm9zcyBjb25mb3JtaXN0cw0KZGlzdHMgPC0gZGF0YS5mcmFtZSgNCiAgc2hvcnRlc3QgPSBhcHBseShEYywgMiwgbWluKSwNCiAgYXZlcmFnZSA9IGFwcGx5KERjLCAyLCBmdW5jdGlvbih4KSBtZWFuKHhbaXMuZmluaXRlKHgpXSkpDQopDQpkaXN0c19sb25nIDwtIHBpdm90X2xvbmdlcigNCiAgZGlzdHMsDQogIGNvbHMgPSBjKHNob3J0ZXN0LCBhdmVyYWdlKSwNCiAgbmFtZXNfdG8gPSAidHlwZSIsDQogIHZhbHVlc190byA9ICJkaXN0YW5jZV90b19zZWVkIg0KKQ0KDQojcGxvdCB0aGUgZGlzdHJpYnV0aW9uDQpnZ3Bsb3QoZGlzdHNfbG9uZywgYWVzKHggPSBkaXN0YW5jZV90b19zZWVkLCBmaWxsID0gdHlwZSkpICsNCiAgZ2VvbV9oaXN0b2dyYW0oDQogICAgYmlucyA9IDIwLA0KICAgIGFscGhhID0gMC41LA0KICAgIHBvc2l0aW9uID0gImlkZW50aXR5Ig0KICApICsNCiAgdGhlbWVfbWluaW1hbCgpDQpgYGANCg0KDQpgYGB7ciwgb3V0LndpZHRoPSI2MCUifQ0Ka25pdHI6OmluY2x1ZGVfZ3JhcGhpY3MocGFzdGUwKCIuL2ZpZ3VyZXMvYW5pbWF0aW9uX25ldHdvcmtfIiwgc2VlZCAsIi5naWYiKSkNCmBgYA0KDQpgYGB7cn0NCnRlc3QgPC0gcnVuX29uZV9zZWVkKDMsIGtfbWluID0gMiwga19tYXggPSAyMCwgYWxwaGEgPSAyLjQsIHJobyA9IDAuNCwgciA9IC0wLjEpDQpzZWVkID0gc2VlZCArIDENCmBgYA0KDQpgYGB7ciwgb3V0LndpZHRoPSI2MCUifQ0Ka25pdHI6OmluY2x1ZGVfZ3JhcGhpY3MocGFzdGUwKCIuL2ZpZ3VyZXMvYW5pbWF0aW9uX25ldHdvcmtfIiwgc2VlZCAsIi5naWYiKSkNCmBgYA0KDQpgYGB7cn0NCnRlc3QgPC0gcnVuX29uZV9zZWVkKDQsIGtfbWluID0gMiwga19tYXggPSAyMCwgYWxwaGEgPSAyLjQsIHJobyA9IDAuNCwgciA9IC0wLjEsIHJldHVybl9uZXR3b3JrID0gVFJVRSkNCmJhc2UgPSAyMjUzMjgxDQpzZWVkID0gYmFzZSArIDQNCg0KI2xldCdzIGNoZWNrIHRoZSBkaXN0cmlidXRpb24gb2YgZGlzdGFuY2VzIHRvICd0cmVuZHNldHRlcnMnLCBhbW9uZyAnY29uZm9ybWlzdHMnDQpnIDwtIHRlc3QkbmV0d29yaw0KdHJlbmQgPC0gd2hpY2goVihnKSRyb2xlID09ICJ0cmVuZHNldHRlciIpDQpjb25mICA8LSB3aGljaChWKGcpJHJvbGUgPT0gImNvbmZvcm1pc3QiKQ0KDQojIGRpc3RhbmNlczogcm93cyA9IHNvdXJjZXMgKHRyZW5kc2V0dGVycyksIGNvbHMgPSBhbGwgdmVydGljZXMNCkQgPC0gZGlzdGFuY2VzKGcsIHYgPSB0cmVuZCwgdG8gPSBWKGcpLCBtb2RlID0gImFsbCIpDQpEYyA8LSBEWywgY29uZl0gI2tlZXAganVzdCBjb25mb3JtaXN0cw0KDQojIGNhbGN1bGF0ZSAoYSkgdGhlIGRpc3RhbmNlIHRvIHRoZSBuZWFyZXN0IHRyZW5kc2V0dGVyIGFuZCAoYikgdGhlIGF2ZXJhZ2UgZGlzdGFuY2UgdG8gdHJlbmRzZXR0ZXJzLCBhY3Jvc3MgY29uZm9ybWlzdHMNCmRpc3RzIDwtIGRhdGEuZnJhbWUoDQogIHNob3J0ZXN0ID0gYXBwbHkoRGMsIDIsIG1pbiksDQogIGF2ZXJhZ2UgPSBhcHBseShEYywgMiwgZnVuY3Rpb24oeCkgbWVhbih4W2lzLmZpbml0ZSh4KV0pKQ0KKQ0KZGlzdHNfbG9uZyA8LSBwaXZvdF9sb25nZXIoDQogIGRpc3RzLA0KICBjb2xzID0gYyhzaG9ydGVzdCwgYXZlcmFnZSksDQogIG5hbWVzX3RvID0gInR5cGUiLA0KICB2YWx1ZXNfdG8gPSAiZGlzdGFuY2VfdG9fc2VlZCINCikNCg0KI3Bsb3QgdGhlIGRpc3RyaWJ1dGlvbg0KZ2dwbG90KGRpc3RzX2xvbmcsIGFlcyh4ID0gZGlzdGFuY2VfdG9fc2VlZCwgZmlsbCA9IHR5cGUpKSArDQogIGdlb21faGlzdG9ncmFtKA0KICAgIGJpbnMgPSAyMCwNCiAgICBhbHBoYSA9IDAuNSwNCiAgICBwb3NpdGlvbiA9ICJpZGVudGl0eSINCiAgKSArDQogIHRoZW1lX21pbmltYWwoKQ0KYGBgDQoNCmBgYHtyfQ0KdGVzdCRzdGF0cw0KdGFibGUoZGVncmVlKHRlc3QkbmV0d29yaykpDQoNCiNpZGVudGlmeSB0cmVuZHNldHRlcnMNCmlkcyA8LSB3aGljaChWKHRlc3QkbmV0d29yaykkcm9sZSA9PSAidHJlbmRzZXR0ZXIiKQ0KDQojY2hlY2sgdGhlaXIgY2VudHJhbGl0eQ0Kc29ydChhcy5udW1lcmljKGNiaW5kKGRlZ3JlZSh0ZXN0JG5ldHdvcmspLCBWKHRlc3QkbmV0d29yaykkcm9sZSlbaWRzXSkpDQpgYGANCg0KYGBge3IsIG91dC53aWR0aD0iNjAlIn0NCmtuaXRyOjppbmNsdWRlX2dyYXBoaWNzKHBhc3RlMCgiLi9maWd1cmVzL2FuaW1hdGlvbl9uZXR3b3JrXyIsIHNlZWQgLCIuZ2lmIikpDQpgYGANCg0KIyMjIGluY3JlYXNlZCBkZW5zaXR5DQoNCmBgYHtyfQ0KdGVzdCA8LSBydW5fb25lX3NlZWQoNSwga19taW4gPSAyLCBrX21heCA9IDQ5LCBhbHBoYSA9IDIuNCwgcmhvID0gMC40LCByID0gLTAuMSwgcmV0dXJuX25ldHdvcmsgPSBUUlVFKQ0Kc2VlZCA9IHNlZWQgKyAxDQoNCiNzb3J0KGRlZ3JlZSh0ZXN0JG5ldHdvcmspKQ0KI2NiaW5kKGRlZ3JlZSh0ZXN0JG5ldHdvcmspLCBWKHRlc3QkbmV0d29yaykkcm9sZSkNCg0KI2xldCdzIGNoZWNrIHRoZSBkaXN0cmlidXRpb24gb2YgZGlzdGFuY2VzIHRvICd0cmVuZHNldHRlcnMnLCBhbW9uZyAnY29uZm9ybWlzdHMnDQpnIDwtIHRlc3QkbmV0d29yaw0KdHJlbmQgPC0gd2hpY2goVihnKSRyb2xlID09ICJ0cmVuZHNldHRlciIpDQpjb25mICA8LSB3aGljaChWKGcpJHJvbGUgPT0gImNvbmZvcm1pc3QiKQ0KDQojIGRpc3RhbmNlczogcm93cyA9IHNvdXJjZXMgKHRyZW5kc2V0dGVycyksIGNvbHMgPSBhbGwgdmVydGljZXMNCkQgPC0gZGlzdGFuY2VzKGcsIHYgPSB0cmVuZCwgdG8gPSBWKGcpLCBtb2RlID0gImFsbCIpDQpEYyA8LSBEWywgY29uZl0gI2tlZXAganVzdCBjb25mb3JtaXN0cw0KDQojIGNhbGN1bGF0ZSAoYSkgdGhlIGRpc3RhbmNlIHRvIHRoZSBuZWFyZXN0IHRyZW5kc2V0dGVyIGFuZCAoYikgdGhlIGF2ZXJhZ2UgZGlzdGFuY2UgdG8gdHJlbmRzZXR0ZXJzLCBhY3Jvc3MgY29uZm9ybWlzdHMNCmRpc3RzIDwtIGRhdGEuZnJhbWUoDQogIHNob3J0ZXN0ID0gYXBwbHkoRGMsIDIsIG1pbiksDQogIGF2ZXJhZ2UgPSBhcHBseShEYywgMiwgZnVuY3Rpb24oeCkgbWVhbih4W2lzLmZpbml0ZSh4KV0pKQ0KKQ0KZGlzdHNfbG9uZyA8LSBwaXZvdF9sb25nZXIoDQogIGRpc3RzLA0KICBjb2xzID0gYyhzaG9ydGVzdCwgYXZlcmFnZSksDQogIG5hbWVzX3RvID0gInR5cGUiLA0KICB2YWx1ZXNfdG8gPSAiZGlzdGFuY2VfdG9fc2VlZCINCikNCg0KI3Bsb3QgdGhlIGRpc3RyaWJ1dGlvbg0KZ2dwbG90KGRpc3RzX2xvbmcsIGFlcyh4ID0gZGlzdGFuY2VfdG9fc2VlZCwgZmlsbCA9IHR5cGUpKSArDQogIGdlb21faGlzdG9ncmFtKA0KICAgIGJpbnMgPSAyMCwNCiAgICBhbHBoYSA9IDAuNSwNCiAgICBwb3NpdGlvbiA9ICJpZGVudGl0eSINCiAgKSArDQogIHRoZW1lX21pbmltYWwoKQ0KYGBgDQoNCjxicj4NCg0KTGV0J3MgdGFrZSB0aGlzIGFzIG91ciBleHBlcmltZW50YWwgbmV0d29yayBjb25maWd1cmF0aW9uLg0KDQoNCmBgYHtyfQ0KdGVzdCRzdGF0cw0KdGFibGUoZGVncmVlKHRlc3QkbmV0d29yaykpDQoNCiNpZGVudGlmeSB0cmVuZHNldHRlcnMNCmlkcyA8LSB3aGljaChWKHRlc3QkbmV0d29yaykkcm9sZSA9PSAidHJlbmRzZXR0ZXIiKQ0KDQojY2hlY2sgdGhlaXIgY2VudHJhbGl0eQ0Kc29ydChhcy5udW1lcmljKGNiaW5kKGRlZ3JlZSh0ZXN0JG5ldHdvcmspLCBWKHRlc3QkbmV0d29yaykkcm9sZSlbaWRzXSkpDQpgYGANCg0KDQpgYGB7ciwgZXZhbCA9IEZBTFNFfQ0KIyB1c2UgdGhpcyBhcyB0aGUgbmV0d29yayBzdHJ1Y3R1cmUgZm9yIGFuIG90cmVlIHNlc3Npb246DQojY2JpbmQoZGVncmVlKHRlc3QkbmV0d29yayksVih0ZXN0JG5ldHdvcmspJHJvbGUpDQoNCiMgY29udmVydCB0byBhZGphY2VuY3kgbWF0cml4DQphZGpfbWF0cml4IDwtIGFzLm1hdHJpeChhc19hZGphY2VuY3lfbWF0cml4KHRlc3QkbmV0d29yaykpDQoNCiNnZXQgcm9sZXMNCnJvbGVfdmVjdG9yIDwtIGlmZWxzZShWKHRlc3QkbmV0d29yaykkcm9sZSA9PSAidHJlbmRzZXR0ZXIiLDEsMCkNCiMgY3JlYXRlIGEgbGlzdCB0byBzdG9yZSB0aGUgbmV0d29yayBkYXRhDQpuZXQgPC0gbGlzdChhZGpfbWF0cml4ID0gYWRqX21hdHJpeCwgcm9sZV92ZWN0b3IgPSByb2xlX3ZlY3RvcikNCiMgc2F2ZSB0aGUgbGlzdCBhcyBhIEpTT04gZmlsZQ0Kd3JpdGVfanNvbihuZXQsICJuZXR3b3JrX3Rlc3RfbjUwLmpzb24iKQ0KYGBgDQoNCmBgYHtyLCBvdXQud2lkdGg9IjYwJSJ9DQprbml0cjo6aW5jbHVkZV9ncmFwaGljcyhwYXN0ZTAoIi4vZmlndXJlcy9hbmltYXRpb25fbmV0d29ya18iLCBzZWVkICwiLmdpZiIpKQ0KYGBgDQoNCg0KIyMgMi4gcmFuZG9tIG5ldHdvcmsNCg0Kd2l0aCBzYW1lIG51bWJlciBvZiB0aWVzDQoNCmBgYHtyfQ0KIz9lcmRvcy5yZW55aS5nYW1lDQojZyA8LSBlcmRvcy5yZW55aS5nYW1lKG49NTAsIHA9MC4wNSkNCiM/c2FtcGxlX2dubSgpDQpzZXQuc2VlZCgxMjQxMjQpDQpuZXR3b3JrIDwtIHNhbXBsZV9nbm0obj01MCwgbT0xMTMpDQpWKG5ldHdvcmspJHJvbGUgPC0gc2FtcGxlKA0KICBjKHJlcCgidHJlbmRzZXR0ZXIiLCA1KSwgcmVwKCJjb25mb3JtaXN0IiwgNDUpKQ0KICApDQoNCmZwbG90X2dyYXBoKG5ldHdvcmspDQoNCnRlc3QgPC0gZmFibShuZXR3b3JrID0gbmV0d29yaywNCiAgICBtYXhfcm91bmRzICAgPSA1MCwNCiAgICBtaV90aHJlc2hvbGQgPSAwLjQ5LA0KICAgIGNob2ljZV9ydWxlICA9ICJkZXRlcm1pbmlzdGljIiwNCiAgICBwbG90ICAgICAgICAgPSBUUlVFLA0KICAgIGhpc3RvcmllcyAgICA9IFRSVUUNCiAgKQ0KDQp0ZXN0JHBsb3QNCg0KDQojbGV0J3MgY2hlY2sgdGhlIGRpc3RyaWJ1dGlvbiBvZiBkaXN0YW5jZXMgdG8gJ3RyZW5kc2V0dGVycycsIGFtb25nICdjb25mb3JtaXN0cycNCmcgPC0gbmV0d29yaw0KdHJlbmQgPC0gd2hpY2goVihnKSRyb2xlID09ICJ0cmVuZHNldHRlciIpDQpjb25mICA8LSB3aGljaChWKGcpJHJvbGUgPT0gImNvbmZvcm1pc3QiKQ0KDQojIGRpc3RhbmNlczogcm93cyA9IHNvdXJjZXMgKHRyZW5kc2V0dGVycyksIGNvbHMgPSBhbGwgdmVydGljZXMNCkQgPC0gZGlzdGFuY2VzKGcsIHYgPSB0cmVuZCwgdG8gPSBWKGcpLCBtb2RlID0gImFsbCIpDQpEYyA8LSBEWywgY29uZl0gI2tlZXAganVzdCBjb25mb3JtaXN0cw0KDQojIGNhbGN1bGF0ZSAoYSkgdGhlIGRpc3RhbmNlIHRvIHRoZSBuZWFyZXN0IHRyZW5kc2V0dGVyIGFuZCAoYikgdGhlIGF2ZXJhZ2UgZGlzdGFuY2UgdG8gdHJlbmRzZXR0ZXJzLCBhY3Jvc3MgY29uZm9ybWlzdHMNCmRpc3RzIDwtIGRhdGEuZnJhbWUoDQogIHNob3J0ZXN0ID0gYXBwbHkoRGMsIDIsIG1pbiksDQogIGF2ZXJhZ2UgPSBhcHBseShEYywgMiwgZnVuY3Rpb24oeCkgbWVhbih4W2lzLmZpbml0ZSh4KV0pKQ0KKQ0KZGlzdHNfbG9uZyA8LSBwaXZvdF9sb25nZXIoDQogIGRpc3RzLA0KICBjb2xzID0gYyhzaG9ydGVzdCwgYXZlcmFnZSksDQogIG5hbWVzX3RvID0gInR5cGUiLA0KICB2YWx1ZXNfdG8gPSAiZGlzdGFuY2VfdG9fc2VlZCINCikNCg0KI3Bsb3QgdGhlIGRpc3RyaWJ1dGlvbg0KZ2dwbG90KGRpc3RzX2xvbmcsIGFlcyh4ID0gZGlzdGFuY2VfdG9fc2VlZCwgZmlsbCA9IHR5cGUpKSArDQogIGdlb21faGlzdG9ncmFtKA0KICAgIGJpbnMgPSAyMCwNCiAgICBhbHBoYSA9IDAuNSwNCiAgICBwb3NpdGlvbiA9ICJpZGVudGl0eSINCiAgKSArDQogIHRoZW1lX21pbmltYWwoKQ0KYGBgDQoNCmBgYHtyfQ0KIyAtLS0gc3RhdHMgLS0tDQpzdGF0cyA8LSBsaXN0KG51bV9ub2RlcyAgICAgPSB2Y291bnQoZyksDQogICAgICAgICAgICAgIG51bV9lZGdlcyAgICAgPSBlY291bnQoZyksDQogICAgICAgICAgICAgIGF2Z19kZWdyZWUgICAgPSBtZWFuKGRlZ3JlZShnKSksDQogICAgICAgICAgICAgIHNkX2RlZ3JlZSAgICAgPSBzZChkZWdyZWUoZykpLA0KICAgICAgICAgICAgICBuZXRfZGVuc2l0eSAgID0gZWRnZV9kZW5zaXR5KGcpLA0KICAgICAgICAgICAgICBuZXRfZGlhbWV0ZXIgID0gZGlhbWV0ZXIoZywgZGlyZWN0ZWQgPSBGQUxTRSwgdW5jb25uZWN0ZWQgPSBUUlVFKSwNCiAgICAgICAgICAgICAgYXZnX3BhdGhfbGVuICA9IGF2ZXJhZ2UucGF0aC5sZW5ndGgoZywgZGlyZWN0ZWQgPSBGQUxTRSksDQogICAgICAgICAgICAgIGNsdXN0X2NvZWZmICAgPSB0cmFuc2l0aXZpdHkoZywgdHlwZSA9ICJnbG9iYWwiKSwNCiAgICAgICAgICAgICAgYXNzb3J0X2RlZyAgICA9IGFzc29ydGF0aXZpdHlfZGVncmVlKGcpLA0KICAgICAgICAgICAgICBkZWdfdHJhaXRfY29yID0gZmRlZ3RyYWl0Y29yKGcpJGNvciwNCiAgICAgICAgICAgICAgY29tcG9uZW50cyAgICA9IGNvbXBvbmVudHMoZykkbm8pDQpzdGF0cw0KYGBgDQoNCmBgYHtyLCBldmFsID0gRkFMU0V9DQojIHVzZSB0aGlzIGFzIHRoZSBuZXR3b3JrIHN0cnVjdHVyZSBmb3IgYW4gb3RyZWUgc2Vzc2lvbjoNCiNjYmluZChkZWdyZWUodGVzdCRuZXR3b3JrKSxWKHRlc3QkbmV0d29yaykkcm9sZSkNCg0KIyBjb252ZXJ0IHRvIGFkamFjZW5jeSBtYXRyaXgNCmFkal9tYXRyaXggPC0gYXMubWF0cml4KGFzX2FkamFjZW5jeV9tYXRyaXgobmV0d29yaykpDQoNCiNnZXQgcm9sZXMNCnJvbGVfdmVjdG9yIDwtIGlmZWxzZShWKG5ldHdvcmspJHJvbGUgPT0gInRyZW5kc2V0dGVyIiwxLDApDQojIGNyZWF0ZSBhIGxpc3QgdG8gc3RvcmUgdGhlIG5ldHdvcmsgZGF0YQ0KbmV0IDwtIGxpc3QoYWRqX21hdHJpeCA9IGFkal9tYXRyaXgsIHJvbGVfdmVjdG9yID0gcm9sZV92ZWN0b3IpDQojIHNhdmUgdGhlIGxpc3QgYXMgYSBKU09OIGZpbGUNCndyaXRlX2pzb24obmV0LCAibmV0d29ya190ZXN0X241MF9yYW5kb20uanNvbiIpDQpgYGANCg0KDQoNCg==</div>
 <style>
 .center {
   text-align: center;
@@ -772,7 +916,7 @@ $(document).ready(function () {
 <!-- code folding -->
 <script>
 $(document).ready(function () {
-  window.initializeSourceEmbed("test_n10.Rmd");
+  window.initializeSourceEmbed("experiment50.Rmd");
   window.initializeCodeFolding("show" === "show");
 });
 </script>
