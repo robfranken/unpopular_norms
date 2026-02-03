@@ -485,6 +485,9 @@ times <- read.csv("./rawdata/PageTimes-2026-02-02.csv")
 
 # pilot results
 
+On 2-2-2026, I recruited 80 Prolific participants, to populate a network of N=50 (with a 10% minority group):
+
+
 ## arrival from Prolific
 
 ```{r}
@@ -696,7 +699,7 @@ test2 <- test %>%
 
 # scatter plot: choice vs role, size = retries
 ggplot(test2, aes(x = role, y = as.numeric(choice), size = comprehension_retries)) +
-  geom_jitter(width = 0.2, height = 0.05, alpha = 0.7, color = "steelblue") +  # jitter to avoid overlap
+  geom_jitter(width = 0.2, height = 0.05, alpha = 0.7, color = "steelblue") +  
   scale_size_continuous(range = c(2, 8)) +
   labs(
     x = "Participant role",
