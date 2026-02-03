@@ -535,7 +535,7 @@ ggplot(test, aes(x = consent_timestamp, y = arrival_order)) +
 
 ## progression through the experiment
 
-```{r, fig.height=6}
+```{r, fig.height=8}
 times <- times %>%
   mutate(
     timestamp = as_datetime(epoch_time_completed)
@@ -573,18 +573,30 @@ custom_colors <- c(
   "FinalGameResults" = "#660000"       
 )
 
-# colored y-axis labels
-colored_labels <- sapply(page_levels, function(stage) {
-  paste0("<span style='color:", custom_colors[stage], "'>", stage, "</span>")
-}, USE.NAMES = FALSE)
+#colored y-axis labels based on role
+y_labels_colored <- times_roles %>%
+  select(participant_ordered, role) %>%
+  distinct() %>%
+  arrange(participant_ordered) %>%
+  mutate(
+    label_colored = case_when(
+      role == "Red" ~ paste0("<span style='color:red'>", participant_ordered, "</span>"),
+      role == "Blue" ~ paste0("<span style='color:blue'>", participant_ordered, "</span>"),
+      TRUE ~ paste0("<span style='color:darkgrey'>", participant_ordered, "</span>")
+    )
+  )
 
+# Create a named vector for scale_y_discrete labels
+y_labels_vector <- y_labels_colored$label_colored
+names(y_labels_vector) <- y_labels_colored$participant_ordered
 
 #times2 <- times[times$participant_id_in_session %in% c(34,80),]
 
-ggplot(times, aes(x = timestamp, y = participant_ordered, color = page_name)) +
+ggplot(times_roles, aes(x = timestamp, y = participant_ordered, color = page_name)) +
   geom_line(aes(group = participant_id_in_session), size = 1) +
   geom_point(size = 2) +
   scale_color_manual(values = custom_colors) +
+  scale_y_discrete(labels = y_labels_vector) +
   labs(
     x = "Time",
     y = "Participant (ordered by arrival)",
@@ -592,7 +604,8 @@ ggplot(times, aes(x = timestamp, y = participant_ordered, color = page_name)) +
     title = "Participant progression through experiment stages (by arrival)"
   ) +
   theme_minimal() +
-  theme(axis.text.y = element_text(size = 6))
+  theme(axis.text.y = element_markdown(size = 6))
+
 
 
 ``` 
@@ -693,3 +706,5 @@ ggplot(test2, aes(x = role, y = as.numeric(choice), size = comprehension_retries
   ) +
   theme_minimal(base_size = 14)
 ```
+
+
