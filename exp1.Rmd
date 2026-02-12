@@ -1,0 +1,361 @@
+---
+title: "Experiment"
+bibliography: references.bib
+link-citations: true
+date: "Last compiled on `r format(Sys.time(), '%d-%m-%Y')`"
+output: 
+  html_document:
+    self_contained: true
+    css: tweaks.css
+    toc: true
+    toc_float: true
+    number_sections: true
+    toc_depth: 4
+    code_folding: show
+    code_download: yes
+---
+
+```{r, globalsettings, echo=FALSE, warning=FALSE, results='hide', message=FALSE}
+library(knitr)
+library(tidyverse)
+knitr::opts_chunk$set(echo = TRUE)
+opts_chunk$set(tidy.opts=list(width.cutoff=100),tidy=TRUE, warning = FALSE, message = FALSE,comment = "#>", cache=TRUE, class.source=c("test"), class.output=c("test3"))
+options(width = 100)
+rgl::setupKnitr()
+
+colorize <- function(x, color) {sprintf("<span style='color: %s;'>%s</span>", color, x) }
+```
+
+```{r klippy, echo=FALSE, include=TRUE}
+klippy::klippy(position = c('top', 'right'))
+#klippy::klippy(color = 'darkred')
+#klippy::klippy(tooltip_message = 'Click to copy', tooltip_success = 'Done')
+```
+
+---
+
+# Getting started
+
+To copy the code, click the button in the upper right corner of the code-chunks.
+
+## clean up
+
+```{r, clean_up, results='hide'}
+rm(list=ls())
+gc()
+```
+
+<br>
+
+## custom functions
+
+We defined a number custom functions, at `r xfun::embed_file("./custom_functions.R")`.
+
+```{r, custom_functions}
+source("./custom_functions.R")
+```
+
+<br>
+
+## necessary packages
+
+- `tidyverse`: data wrangling
+- `igraph`: generate and visualize graphs
+- `parallel`: parallel computing to speed up simulation
+- `foreach`: looping in parallel
+- `doParallel`: parallel backend for `foreach`
+- `ggplot2`: data visualization
+- `ggh4x`: hacks for `ggplot2`
+- `ggpubr`: make visualizations publication-ready
+
+
+```{r, packages}
+packages = c("tidyverse", "igraph", "ggplot2", "parallel", "doParallel", "foreach", "ggh4x", "ggpubr", "plotly", "RColorBrewer", "grid", "gridExtra", "patchwork", "ggplotify", "ggraph", "gganimate", "RColorBrewer",
+    "ggtext", "magick", "jsonlite", "lubridate", "ggtext")
+
+invisible(fpackage.check(packages))
+rm(packages)
+```
+
+---
+
+# import data
+
+```{r}
+data <- read.csv("./rawdata/all_apps_wide_2026-02-12.csv")
+times <- read.csv("./rawdata/PageTimes-2026-02-12.csv")
+```
+
+---
+
+# results
+
+On 12-2-2026, I recruited 100 Prolific participants, to populate a network of N=50 (with a 10% minority group):
+
+<br>
+
+## diagnostics
+
+### arrival from Prolific
+
+```{r, fig.width=10, class.source = 'fold-hide'}
+# subset experimental session
+data <- data[data$session.code == "bg6q9igc",]
+times <- times[times$session_code == "bg6q9igc",]
+
+#clean
+test <- data %>%
+  transmute(
+    participant_id = participant.code,
+    participant_label = participant.label,
+    id_in_session  = participant.id_in_session,
+    consent_given = consent.1.player.consent,
+    consent_timestamp = consent.1.player.consent_timestamp,
+    role = participant.role,
+    is_dropout = participant.is_dropout,
+    dropout_app = participant._current_app_name,
+    comprehension_retries = comprehension.1.player.comprehension_retries,
+    passed_comprehension = !participant._current_app_name %in% c("consent", "comprehension"),
+    choice = unpop.1.player.choice,
+    failed_checks = participant.failed_checks,
+    exit_early = participant.exit_early,
+    participated = participant._current_page_name == "PaymentInfo"
+  ) %>%
+  filter(!is.na(consent_given)) %>%
+  mutate(
+    bot = ifelse(participant_label == "", 1, 0),
+    bot = factor(bot, levels = c(0, 1), labels = c("Prolific participant", "Bot")),
+    consent_timestamp = ymd_hms(consent_timestamp),
+    final_state = case_when(
+      failed_checks > 0 ~ "Failed comprehension",
+      exit_early == 1 ~ "Could not be grouped",
+      participated ~ "Participated",
+      TRUE ~ "Too late"
+    )
+  ) %>%
+  arrange(consent_timestamp) %>%
+  mutate(arrival_order = row_number())
+
+ggplot(test, aes(x = consent_timestamp, y = arrival_order)) +
+  geom_point(aes(color = role, shape = bot), size = 3, alpha = 0.5) +
+  scale_shape_manual(values = c(16, 2)) +             
+  scale_color_manual(values = c("blue", "red")) +   
+  labs(
+    x = "Arrival time",
+    y = "Arrival order",
+    color = "Role",
+    shape = "Type",
+    title = "Participant arrivals from Prolific over time"
+  ) +
+  theme_minimal()
+
+ggplot(test, aes(x = consent_timestamp, y = arrival_order)) +
+  geom_point(aes(color = final_state), size = 3, alpha = 0.6) +
+  scale_color_manual(values = c(
+    "Participated" = "green",
+    "Failed comprehension" = "orange",
+    "Could not be grouped" = "red",
+    "Too late" = "gray"
+  )) +
+  facet_wrap(~role) +
+  labs(
+    x = "Arrival time",
+    y = "Arrival order",
+    color = "Final state",
+    title = "Participant arrivals by role and final state"
+  ) +
+  theme_minimal()
+
+fshowdf(table(test$final_state, test$role), caption = "participant status by role")
+```
+
+<br>
+
+### progression through the experiment
+
+```{r, fig.height=10, class.source = 'fold-hide'}
+times <- times %>%
+  mutate(
+    timestamp = as_datetime(epoch_time_completed)
+  )
+
+arrival_times <- times %>%
+  group_by(participant_id_in_session) %>%
+  summarize(arrival_time = min(timestamp), .groups = "drop")
+
+times <- times %>%
+  left_join(arrival_times, by = "participant_id_in_session") %>%
+  mutate(participant_ordered = factor(participant_id_in_session, 
+                                      levels = arrival_times %>% arrange(arrival_time) %>% pull(participant_id_in_session)))
+
+times_roles <- times %>%
+  left_join(
+    test %>% select(id_in_session, role),
+    by = c("participant_id_in_session" = "id_in_session")
+  )
+
+page_levels <- unique(times$page_name)
+
+times_roles <- times_roles %>%
+  mutate(page_name = factor(page_name, levels = page_levels))
+
+custom_colors <- c(
+  "InitializeParticipant" = "#c6dbef", 
+  "ConsentPage" = "#9ecae1",
+  "IntroductionPage" = "#6baed6",
+  "ComprehensionPage" = "#3182bd",
+  "NetworkFormationWaitPage" = "#ffcc99",
+  "DecisionPage" = "#ff9966",
+  "ResultsWaitPage" = "#ff6666",
+  "ResultsPage" = "#cc0033",
+  "FinalGameResults" = "#660000"       
+)
+
+#colored y-axis labels based on role
+y_labels_colored <- times_roles %>%
+  select(participant_ordered, role) %>%
+  distinct() %>%
+  arrange(participant_ordered) %>%
+  mutate(
+    label_colored = case_when(
+      role == "Red" ~ paste0("<span style='color:red'>", participant_ordered, "</span>"),
+      role == "Blue" ~ paste0("<span style='color:blue'>", participant_ordered, "</span>"),
+      TRUE ~ paste0("<span style='color:darkgrey'>", participant_ordered, "</span>")
+    )
+  )
+
+# create a named vector for scale_y_discrete labels
+y_labels_vector <- y_labels_colored$label_colored
+names(y_labels_vector) <- y_labels_colored$participant_ordered
+
+ggplot(times_roles[times_roles$round_number == 1,], aes(x = timestamp, y = participant_ordered, color = page_name)) +
+  geom_line(aes(group = participant_id_in_session), size = 1) +
+  geom_point(size = 2) +
+  scale_color_manual(values = custom_colors) +
+  scale_y_discrete(labels = y_labels_vector) +
+  labs(
+    x = "Time",
+    y = "Participant (ordered by arrival)",
+    color = "Stage/Page",
+    title = "Participant progression through experiment stages (by arrival)"
+  ) +
+  theme_minimal() +
+  theme(axis.text.y = element_markdown(size = 6))
+``` 
+
+### dropout
+
+
+```{r, class.source = 'fold-hide'}
+dropout_long <- data %>%
+  filter(participant._current_page_name == "PaymentInfo") %>% # only completed participants
+  filter(participant.label != "") %>% # exclude bots (participants controlled by experimener have no label)
+  select(
+    participant.code,
+    participant.role,
+    matches("unpop\\.[0-9]+\\.player\\.is_dropout")
+  ) %>%
+  pivot_longer(
+    cols = matches("unpop\\.[0-9]+\\.player\\.is_dropout"),
+    names_to = "round",
+    values_to = "is_dropout"
+  ) %>%
+  mutate(
+    round = str_extract(round, "[0-9]+"),
+    round = as.numeric(round)
+  )
+
+
+# get first dropout round per participant
+dropout_summary <- dropout_long %>%
+  group_by(participant.code, participant.role) %>%
+  summarise(
+    event = any(is_dropout == 1, na.rm = TRUE),
+    dropout_round = ifelse(
+      event,
+      min(round[is_dropout == 1], na.rm = TRUE),
+      30
+    ),
+    .groups = "drop"
+  )
+
+# count cumulative dropouts
+cum_dropout_role <- dropout_summary %>%
+  filter(event == TRUE) %>%
+  count(participant.role, dropout_round) %>%
+  group_by(participant.role) %>%
+  complete(dropout_round = 1:30, fill = list(n = 0)) %>%
+  arrange(participant.role, dropout_round) %>%
+  mutate(
+    cumulative_dropout = cumsum(n)
+  ) %>%
+  ungroup()
+
+ggplot(cum_dropout_role,
+       aes(x = dropout_round,
+           y = cumulative_dropout,
+           color = participant.role)) +
+  geom_line(linewidth = 1.2) +
+  geom_point() +
+  scale_x_continuous(breaks = 1:30) +
+  scale_color_manual(
+    values = c(
+      "Red" = "red",
+      "Blue" = "blue"
+    )) +
+  labs(
+    x = "Round",
+    y = "Dropout",
+    color = "Role",
+    title = "Cumulative dropout (by role)"
+  ) +
+  theme_minimal()
+```
+
+----
+
+
+## unpopular norm spread
+
+
+```{r,class.source = 'fold-hide'}
+df_long <- data %>%
+  filter(participant._current_page_name == "PaymentInfo") %>%
+  select(participant.label, participant.role, starts_with("unpop.")) %>%
+  
+  pivot_longer(
+    cols = matches("unpop\\.\\d+\\.player\\.choice$"),  # only choice columns
+    names_to = "round",
+    values_to = "choice"
+  ) %>%
+  
+  mutate(
+    round = as.integer(gsub("unpop\\.(\\d+)\\.player\\.choice", "\\1", round)),
+    is_bot = ifelse(participant.label == "", TRUE, FALSE)
+  ) %>%
+  
+  select(participant.label, participant.role, round, choice, is_bot)
+
+df_plot <- df_long %>%
+  group_by(round) %>%
+  summarise(
+    pct_choice1 = mean(choice, na.rm = TRUE) * 100,  # proportion * 100
+    n = n()
+  )
+
+ggplot(df_plot, aes(x = round, y = pct_choice1)) +
+  geom_line(group = 1, color = "steelblue", size = .5) +
+  geom_point(color = "steelblue", size = 2) +
+   geom_hline(yintercept = 10, linetype = "longdash", color = "darkgrey", size = 0.8) +  # dashed line at 10
+  scale_x_continuous(breaks = df_plot$round) +
+  scale_y_continuous(limits = c(0, 100)) +  
+  labs(
+    x = "Round",
+    y = "% agents choosing 'blue'",
+    title = "Evolution of an unpopular norm"
+  )
+```
+
+
+
+

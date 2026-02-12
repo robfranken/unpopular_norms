@@ -21,14 +21,21 @@ navbar:
     - icon: fa-microscope
       text: "Experiment"
       menu:
-      - text: "Test with n=10"
-        href: test_n10.html
-      - text: "Test with n=100"
-        href: experiment100.html
-      - text: "Test with n=50"
-        href: experiment50.html
-      - text: "SRDA computer-lab"
-        href: demonstration_SRDA.html
+        - text: "Test"
+          menu:
+            - text: "Test with n=10"
+              href: test_n10.html
+            - text: "Test with n=100"
+              href: experiment100.html
+            - text: "Test with n=50"
+              href: experiment50.html
+            - text: "SRDA computer-lab"
+              href: demonstration_SRDA.html
+        - text: "Experiments"
+          menu:
+             - text: "2026-12-02"
+               href: exp1.html
+
     
   right:
     - icon: fab fa-github
