@@ -84,13 +84,27 @@ rm(packages)
 ```{r}
 data <- read.csv("./rawdata/all_apps_wide_2026-02-12.csv")
 times <- read.csv("./rawdata/PageTimes-2026-02-12.csv")
+
+#cbind(data$participant.node,data$participant.role)[complete.cases( #cbind(data$participant.node,data$participant.role)),]
+
+#data[, c("participant.bonus", "participant.label")][!is.na(data$participant.bonus),]
 ```
 
 ---
 
 # results
 
-On 12-2-2026, I recruited 100 Prolific participants, to populate a network of N=50 (with a 10% minority group):
+On 12-2-2026, I recruited 100 Prolific participants, to populate a network of N=50 (with a 10% minority group).
+
+```{r, class.source = 'fold-hide'}
+net <- jsonlite::fromJSON("./networks/network_test_n50.json")
+
+g <- graph_from_adjacency_matrix(net$adj_matrix, mode = "undirected")
+V(g)$role <- ifelse(net$role_vector == 1, "trendsetter", "conformist")
+
+fplot_graph(g )
+```
+
 
 <br>
 
@@ -251,7 +265,7 @@ dropout_long <- data %>%
   filter(participant._current_page_name == "PaymentInfo") %>% # only completed participants
   filter(participant.label != "") %>% # exclude bots (participants controlled by experimener have no label)
   select(
-    participant.code,
+    participant.label,
     participant.role,
     matches("unpop\\.[0-9]+\\.player\\.is_dropout")
   ) %>%
@@ -268,7 +282,7 @@ dropout_long <- data %>%
 
 # get first dropout round per participant
 dropout_summary <- dropout_long %>%
-  group_by(participant.code, participant.role) %>%
+  group_by(participant.label, participant.role) %>%
   summarise(
     event = any(is_dropout == 1, na.rm = TRUE),
     dropout_round = ifelse(
@@ -319,9 +333,10 @@ ggplot(cum_dropout_role,
 
 
 ```{r,class.source = 'fold-hide'}
+# choice behavior over rounds:
 df_long <- data %>%
-  filter(participant._current_page_name == "PaymentInfo") %>%
-  select(participant.label, participant.role, starts_with("unpop.")) %>%
+  filter(participant._current_page_name == "PaymentInfo") %>% # filter actual participants
+  select(participant.label, participant.role, participant.node, starts_with("unpop.")) %>% #also include network node.
   
   pivot_longer(
     cols = matches("unpop\\.\\d+\\.player\\.choice$"),  # only choice columns
@@ -333,9 +348,20 @@ df_long <- data %>%
     round = as.integer(gsub("unpop\\.(\\d+)\\.player\\.choice", "\\1", round)),
     is_bot = ifelse(participant.label == "", TRUE, FALSE)
   ) %>%
-  
-  select(participant.label, participant.role, round, choice, is_bot)
+  select(participant.label, participant.node, participant.role, round, choice, is_bot)
 
+# identify round of dropout:
+first_dropout <- dropout_long %>%
+  filter(is_dropout == 1) %>%
+  group_by(participant.label) %>%
+  summarise(dropout_round = min(round),
+            .groups = "drop")
+
+# and add to the df:
+df_long <- df_long %>%
+  left_join(first_dropout, by = "participant.label")
+
+# aggregated
 df_plot <- df_long %>%
   group_by(round) %>%
   summarise(
@@ -354,8 +380,97 @@ ggplot(df_plot, aes(x = round, y = pct_choice1)) +
     y = "% agents choosing 'blue'",
     title = "Evolution of an unpopular norm"
   )
+
+#sort by node
+df_long <- df_long %>%
+  arrange(participant.node) %>%
+  select(-participant.label)
+
+df_long$dropout_round[is.na(df_long$dropout_round)] <- 30 #non dropouts, set to 30.
 ```
 
+```{r,class.source = 'fold-hide'}
+# make roles consistent with utility function roles
+df_long$role <- ifelse(df_long$participant.role == "Blue", "trendsetter", "conformist")
+
+# specificy incentive structure parameters
+params = list(s = 15, e = 10, w = 40, z = 50, lambda1 = 5, lambda2 = 1.8)
+
+df_long$id <- df_long$participant.node + 1 #nodes are 0-indexed
+
+#add degree
+deg <- degree(g)
+df_long <- df_long %>%
+  mutate(degree = deg[id])
+
+calculate_round_utilities <- function(current_round, df_long, network, params) {
+  # previous round data
+  df_prev <- df_long %>%
+    filter(round == current_round - 1) %>%
+    select(id, role, choice)
+  
+  # current round data
+  df_curr <- df_long %>%
+    filter(round == current_round)
+  
+  # compute utilities
+  df_curr <- df_curr %>%
+    rowwise() %>%
+    mutate(
+      util_0 = futility(agent_id = id, choice = 0,
+                         agents = df_prev,
+                         network = network,
+                         params = params)$utility,
+      util_1 = futility(agent_id = id, choice = 1,
+                         agents = df_prev,
+                         network = network,
+                         params = params)$utility
+    ) %>%
+    ungroup()
+  
+  return(df_curr)
+}
+
+##calculate_round_utilities(2, df_long, network = g, params = params)
+
+#compute utilities for all rounsd (except round 1)
+max_round <- max(df_long$round)
+df <- map_dfr(2:max_round, ~calculate_round_utilities(.x, df_long, g, params))
+
+# identify best replies
+df <- df %>%
+  mutate(
+    predicted_choice = ifelse(util_1 > util_0, 1, 0),
+    best_reply = (choice == predicted_choice)  # TRUE if agent picked the choice with highest utility
+  )
 
 
+df_summary <- df %>%
+  mutate(
+    preferred_choice = ifelse(role == "trendsetter", 1, 0),    # define preferred option by role
+    chose_preferred = (choice == preferred_choice)            # TRUE if they picked their preferred option
+  ) %>%
+  group_by(round, role) %>%
+  summarize(
+    n_agents = n(),
+    prop_preferred = mean(chose_preferred),   # fraction that chose their preferred option
+    prop_best_reply = mean(best_reply),       # fraction that picked the highest-utility choice
+    .groups = "drop"
+  )
+
+
+ggplot(df_summary, aes(x = round)) +
+  geom_line(aes(y = prop_preferred, color = "Preference"), size = 1) +
+  geom_line(aes(y = prop_best_reply, color = "Best reply"), size = 1, linetype = "dashed") +
+  facet_wrap(~role) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0,1)) +
+  scale_color_manual(values = c("Preference" = "darkgreen", "Best reply" = "steelblue")) +
+  labs(
+    x = "Round",
+    y = "Proportion of agents",
+    color = "Metric",
+    title = "Following preference vs best-reply over rounds"
+  )
+
+``` 
 
