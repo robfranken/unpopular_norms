@@ -1,0 +1,212 @@
+---
+title: "Experiment"
+bibliography: references.bib
+link-citations: true
+date: "Last compiled on `r format(Sys.time(), '%d-%m-%Y')`"
+output: 
+  html_document:
+    self_contained: true
+    css: tweaks.css
+    toc: true
+    toc_float: true
+    number_sections: true
+    toc_depth: 4
+    code_folding: show
+    code_download: yes
+---
+
+```{r, globalsettings, echo=FALSE, warning=FALSE, results='hide', message=FALSE}
+library(knitr)
+library(tidyverse)
+knitr::opts_chunk$set(echo = TRUE)
+opts_chunk$set(tidy.opts=list(width.cutoff=100),tidy=TRUE, warning = FALSE, message = FALSE,comment = "#>", cache=TRUE, class.source=c("test"), class.output=c("test3"))
+options(width = 100)
+rgl::setupKnitr()
+
+colorize <- function(x, color) {sprintf("<span style='color: %s;'>%s</span>", color, x) }
+```
+
+```{r klippy, echo=FALSE, include=TRUE}
+klippy::klippy(position = c('top', 'right'))
+#klippy::klippy(color = 'darkred')
+#klippy::klippy(tooltip_message = 'Click to copy', tooltip_success = 'Done')
+```
+
+---
+
+# Getting started
+
+To copy the code, click the button in the upper right corner of the code-chunks.
+
+## clean up
+
+```{r, clean_up, results='hide'}
+rm(list=ls())
+gc()
+```
+
+<br>
+
+## custom functions
+
+We defined a number custom functions, at `r xfun::embed_file("./custom_functions.R")`.
+
+```{r, custom_functions}
+source("./custom_functions.R")
+```
+
+<br>
+
+## necessary packages
+
+- `tidyverse`: data wrangling
+- `igraph`: generate and visualize graphs
+- `parallel`: parallel computing to speed up simulation
+- `foreach`: looping in parallel
+- `doParallel`: parallel backend for `foreach`
+- `ggplot2`: data visualization
+- `ggh4x`: hacks for `ggplot2`
+- `ggpubr`: make visualizations publication-ready
+
+
+```{r, packages}
+packages = c("tidyverse", "igraph", "ggplot2", "parallel", "doParallel", "foreach", "ggh4x", "ggpubr", "plotly", "RColorBrewer", "grid", "gridExtra", "patchwork", "ggplotify", "ggraph", "gganimate", "RColorBrewer",
+    "ggtext", "magick", "jsonlite", "lubridate", "ggtext")
+
+invisible(fpackage.check(packages))
+rm(packages)
+```
+
+---
+
+# import data
+
+```{r}
+data <- read.csv("./rawdata/all_apps_wide_2026-05-04.csv")
+times <- read.csv("./rawdata/PageTimes-2026-05-04.csv")
+
+#cbind(data$participant.node,data$participant.role)[complete.cases( #cbind(data$participant.node,data$participant.role)),]
+
+bonus <- data[, c("participant.bonus", "participant.label")]
+bonus <- bonus[!is.na(bonus$participant.bonus), ]
+bonus_out <- data.frame(
+  id = bonus$participant.label,
+  bonus = bonus$participant.bonus
+)
+#nrow(bonus_out)
+#write.table(bonus_out, "bonus.txt", sep = ",", row.names = FALSE, col.names = TRUE, quote = FALSE)
+```
+
+---
+
+# results
+
+On 04-05-2026, I recruited 61 Prolific participants via a brief [sign-up survey](https://github.com/UtrechtUniversity/sign-up-experiment) to populate a network of N=50 (with a 10% minority group). 
+
+
+```{r, class.source = 'fold-hide'}
+#data$session.config.network_condition
+net <- jsonlite::fromJSON("./networks/network_test_n50_random.json")
+
+g <- graph_from_adjacency_matrix(net$adj_matrix, mode = "undirected")
+V(g)$role <- ifelse(net$role_vector == 1, "trendsetter", "conformist")
+
+fplot_graph(g )
+```
+
+
+<br>
+
+## diagnostics
+
+
+### dropout
+
+When did people time out?
+
+```{r}
+dropout_long <- data %>%
+  filter(!is.na(participant.node)) %>%
+  select(
+    participant.label,
+    participant.role,
+    matches("unpop\\.[0-9]+\\.player\\.is_dropout")
+  ) %>%
+  pivot_longer(
+    cols = matches("unpop\\.[0-9]+\\.player\\.is_dropout"),
+    names_to = "round",
+    values_to = "is_dropout"
+  ) %>%
+  mutate(
+    round = str_extract(round, "[0-9]+"),
+    round = as.numeric(round)
+  )
+
+dropout_df <- dropout_long %>%
+  filter(is_dropout == 1) %>%
+  select(participant.label, participant.role, round)
+
+ggplot(na.omit(dropout_df), aes(x = round)) +
+  geom_bar()
+
+# number of players that experienced time-outs:
+dropout_df %>%
+  distinct(participant.label) %>%
+  nrow()
+
+# players exiting after recurring timeouts:
+table(data$participant.exit)
+```
+
+
+----
+
+
+## unpopular norm spread
+
+```{r,class.source = 'fold-hide'}
+df_long <- data %>%
+  filter(!is.na(participant.node)) %>%
+  select(participant.label, participant.role, participant.node, starts_with("unpop.")) %>% #also include network node.
+  
+  pivot_longer(
+    cols = matches("unpop\\.\\d+\\.player\\.choice$"),  # only choice columns
+    names_to = "round",
+    values_to = "choice"
+  ) %>%
+  mutate(
+    round = as.integer(gsub("unpop\\.(\\d+)\\.player\\.choice", "\\1", round)),
+    is_bot = ifelse(participant.label == "", TRUE, FALSE)
+  ) %>%
+  select(participant.label, participant.node, participant.role, round, choice, is_bot)
+
+# aggregated
+df_plot <- df_long %>%
+  group_by(round) %>%
+  summarise(
+    pct_choice1 = mean(choice, na.rm = TRUE) * 100,  # proportion * 100
+    n = n()
+  )
+
+ggplot(df_plot, aes(x = round, y = pct_choice1)) +
+  geom_line(group = 1, color = "steelblue", size = .5) +
+  geom_point(color = "steelblue", size = 2) +
+   geom_hline(yintercept = 10, linetype = "longdash", color = "darkgrey", size = 0.8) +  # dashed line at 10
+  scale_x_continuous(breaks = df_plot$round) +
+  scale_y_continuous(limits = c(0, 100)) +  
+  labs(
+    x = "Round",
+    y = "% agents choosing 'blue'",
+    title = "Evolution of an unpopular norm"
+  )
+```
+
+
+```{r}
+table(data$survey.1.player.enjoyment)
+table(data$survey.1.player.clarity)
+table(data$survey.1.player.majority)
+fshowdf(unique(data$survey.1.player.strategy))
+fshowdf(unique(data$survey.1.player.perceived_rq))
+fshowdf(unique(data$survey.1.player.comments))
+```
