@@ -1,0 +1,66 @@
+{{ block title }}
+Summary
+{{ endblock }}
+
+{{ block content }}
+
+{% if timeslot %}
+<ul>
+    <li>You have chosen to participate in the experiment.</li>
+    <li>Your selected time slot is: <strong>{{ timeslot }}</strong>.</li>
+    <li>You gave consent for the use of your study data for scientific purposes and demonstrated understanding of the study.</li>
+    <li>
+        You will receive an invitation to participate in the study about 10 minutes before the start time.
+        Please arrive no later than the scheduled start time; if you arrive late, you will not be able to participate.
+    </li>
+    <li>
+        There is a small chance that the session may already be full when you arrive. In that case, you will still receive the base compensation for showing up on time.
+    </li>
+</ul>
+
+{% else %}
+<p>
+You have chosen to participate, but no time slot was selected.
+</p>
+{% endif %}
+
+{{ formfields }}
+
+<form method="post">
+    <button class="btn btn-primary" type="submit">
+        Complete my registration
+    </button>
+</form>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const form = document.querySelector("form");
+
+    function getConfirmMessage() {
+        const confirmNo = document.querySelector(
+            'input[name="confirm"][value="False"]:checked'
+        );
+
+        if (confirmNo) {
+            return "Are you sure? If you do not confirm the information, you cannot participate in the study.";
+        }
+
+        return null;
+    }
+
+    form.addEventListener("submit", function (event) {
+        const message = getConfirmMessage();
+
+        if (message) {
+            const proceed = confirm(message);
+            if (!proceed) {
+                event.preventDefault();
+            }
+        }
+    });
+});
+</script>
+
+
+{{ endblock }}

@@ -1,0 +1,49 @@
+
+{{ block content }}
+<p>
+    You have indicated that you do not want to participate in this study.
+</p>
+
+<p>
+    To help us improve the design and organization of future studies,
+    we would appreciate knowing your main reason.
+</p>
+<div class="mb-4">
+    <p>{{ form.opt_out_reason.label }}</p>
+    {{ form.opt_out_reason }}
+</div>
+
+<div id="other-reason-div" class="mb-4 mt-3" style="display:none;">
+    <p>{{ form.opt_out_reason_text.label }}</p>
+    {{ form.opt_out_reason_text }}
+</div>
+
+<button type="submit" class="btn btn-primary">
+    Return to Prolific
+</button>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const reasonRadios = document.querySelectorAll('input[name="opt_out_reason"]');
+    const otherDiv = document.getElementById("other-reason-div");
+
+    function toggleOtherField() {
+        const selected = document.querySelector('input[name="opt_out_reason"]:checked');
+
+        if (selected && selected.value === "Other") {
+            otherDiv.style.display = "block";
+        } else {
+            otherDiv.style.display = "none";
+        }
+    }
+
+    reasonRadios.forEach(radio => {
+        radio.addEventListener("change", toggleOtherField);
+    });
+
+    toggleOtherField();
+});
+</script>
+
+{{ endblock }}

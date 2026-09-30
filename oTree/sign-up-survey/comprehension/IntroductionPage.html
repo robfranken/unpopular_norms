@@ -1,0 +1,347 @@
+{% load otree static %}
+{% block custom_styles %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap');
+    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css');
+
+    body {
+        font-family: 'Montserrat', sans-serif;
+        background-color: #f7f9fc;
+        color: #424242;
+        line-height: 1.6;
+    }
+
+    .experiment-container {
+        max-width: 900px;
+        margin: 3% auto;
+        padding: 2% 4%;
+        background-color: #fff;
+        border-radius: 15px;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    .header {
+        background-color: #2c3e50;
+        color: #fff;
+        padding: 30px;
+        text-align: center;
+        border-radius: 15px 15px 0 0;
+        margin: -2% -4% 4% -4%;
+    }
+
+    h1 {
+        font-size: 2.5rem;
+    }
+
+    p {
+        font-size: 1rem;
+    }
+
+    .introduction,
+    .overview,
+    .stages {
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 30px;
+        margin-bottom: 30px;
+    }
+
+    .stages ol li {
+        counter-increment: list-counter;
+        padding-bottom: 15px;
+        position: relative;
+    }
+
+    .encouragement {
+        font-size: 1rem;
+        padding: 20px;
+        background-color: #e8f4fd;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        text-align: center;
+        margin-bottom: 40px;
+    }
+
+    .btn-primary {
+        font-size: 1rem;
+        color: #fff;
+        background-color: #4a86e8;
+        border: none;
+        border-radius: 30px;
+        padding: 15px 30px;
+        font-weight: 600;
+        display: inline-block;
+        transition: box-shadow 0.2s, transform 0.2s;
+    }
+
+    .btn-primary:hover {
+        background-color: #3a72bb;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .next-button-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 24px;
+    }
+
+    .icon-text {
+        margin-right: 0.5rem;
+    }
+
+    .stages-header {
+        margin-bottom: 1rem;
+    }
+
+
+    .table-responsive tbody tr:hover {
+        background-color: #f0f8ff;
+        transition: background-color 0.3s ease-in-out;
+    }
+
+    .table-container {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+    }
+
+    .table-responsive {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .table-responsive th, .table-responsive td {
+        padding: 1px;
+        border-bottom: 1px solid #ddd;
+        text-align: center;
+    }
+
+    .table-responsive th {
+        background-color: #f4f4f4;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
+
+    .blue-role {
+        color: #007bff;
+    }
+
+    .red-role {
+        color: #ff0000;
+    }
+
+</style>
+{% endblock %}
+
+
+{% block content %}
+<div class="experiment-container">
+    <div class="header">
+        <h1><i class="fa-solid fa-shirt"></i> {{ Constants.title }}</h1>
+    </div>
+
+    <div class="section introduction">
+        <h2><i class="fas fa-rocket icon-text"></i>Introduction</h2>
+        <p>Thank you for registering for the online academic study <b>{{ Constants.title }}</b>. Please read the following instructions carefully!</p>
+    </div>
+    <div class="section overview">
+    <h2><i class="fas fa-binoculars icon-text"></i>Game overview</h2>
+        <p>You will play a multiplayer game with a total of <strong>{{ group_size }} players</strong>, spanning between <strong>{{ num_rounds_lower }} and {{ num_rounds_upper }} rounds</strong>.
+        Players are connected through a network and will interact with their neighbors—the ones directly linked to them.
+</p>
+    <p>Each round, you and your co-players will be faced with a dilemma: You have to decide whether to wear a <b class="red-role">red shirt</b> or a <b class="blue-role">blue shirt</b>.
+        Some players prefer red, while others prefer blue. One group holds a majority, but you don't know which one.</p>
+
+    {% if role == Constants.majority %}
+        <p>In the game, <strong>you prefer red</strong>, but your main objective is to coordinate your shirt choice with your neighbors.
+            Every round, you earn points for choosing your preferred color, but the key to maximizing your rewards is to match the shirt choices of your neighbors.
+            The more neighbors who choose the same shirt color as you, the more points you earn.</p>
+        <p>Below, you find example payoff tables. For illustration purposes, let us assume that you have <strong>{{ degree }} neighbors</strong>.
+            Table&nbsp;1 shows the fixed points you receive for each shirt color,
+            while Table&nbsp;2 shows the additional coordination rewards you earn depending on how many neighbors choose the same color as you.
+            Once the game begins and you are grouped with other players, you will be shown your real payoff tables,
+            based on the exact number of neighbors you will have.</p>
+
+
+        <h3 style="font-size: 1rem;"><b>Table 1.</b> Fixed rewards for shirt choices</h3>
+        <div class="table-container">
+            <table class="table-responsive">
+                <thead>
+                <tr>
+                    <th style="width: 40%;"></th>
+                    <th style="text-align: center; color: red;">
+                        <i class="fa-solid fa-shirt"></i>
+                    </th>
+                    <th style="text-align: center; color: blue;">
+                        <i class="fa-solid fa-shirt"></i>
+                    </th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td> </td>
+                    <td>{{ Constants.s }} points</td>
+                    <td>0 points</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <br>
+
+        <h3 style="font-size: 1rem;"><b>Table 2.</b> Coordination rewards for shirt choices</h3>
+        <div class="table-container">
+            <table class="table-responsive">
+                <thead>
+                <tr>
+                    <th style="width: 40%;">Aligned neighbors</th>
+
+                    <th style="text-align: center; color: red;">
+                        <i class="fa-solid fa-shirt"></i>
+                    </th>
+                    <th style="text-align: center; color: blue;">
+                        <i class="fa-solid fa-shirt"></i>
+                    </th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for row in table_data %}
+                    <tr>
+                        <td>{{ row.c_n }}</td>
+                        <td>{{ row.wstar }} points</td>
+                        <td>{{ row.zstar }} points</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if role == Constants.majority %}
+        <br>
+        <div class="encouragement" style="background-color:#fdf3f3; text-align:left;">
+            <details>
+                <summary style="cursor:pointer; font-weight:bold; color:#c0392b;">
+                    <i class="fa-solid fa-folder"></i> Click to view example
+                </summary>
+                <div style="margin-top:15px; padding-left:10px;">
+                    <ul>
+                        <li>If you pick <strong><span class="red-role">Red</span></strong> together with 1 neighbor, you receive: <strong>15</strong> (Table 1) + <strong>28</strong> (Table 2) = <strong>43 points</strong>.</li>
+                        <li>If you pick <strong><span class="blue-role">Blue</span></strong> together with 1 neighbor, you receive: <strong>0</strong>  (Table 1) + <strong>45</strong> (Table 2) = <strong>45 points</strong>.</li>
+                    </ul>
+                </div>
+            </details>
+        </div>
+
+{% endif %}
+
+
+    {% else %}
+        <p>In this game, <strong>you prefer blue</strong>. Below, you will find a table displaying the fixed rewards for each shirt choice. Players with the same preferred color share the same reward structure.</p>
+
+        <h3 style="font-size: 1rem;"><b>Table 1.</b> Fixed rewards for shirt choices</h3>
+        <div class="table-container">
+            <table class="table-responsive">
+                <thead>
+                <tr>
+                    <th style="width: 40%;"></th>
+
+
+                     <th style="text-align: center; color: red;">
+                        <i class="fa-solid fa-shirt"></i>
+                    </th>
+                    <th style="text-align: center; color: blue;">
+                        <i class="fa-solid fa-shirt"></i>
+                    </th>
+
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td></td>
+                    <td>0 points</td>
+                    <td>{{ Constants.e }} points</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <br>
+    {% endif %}
+
+        <p>At the end of the game, points will be converted into pounds ({% if role == Constants.majority %}{{Constants.points_per_euro_majority}}
+             {% else %}{{Constants.points_per_euro_minority}}
+              {% endif %}
+            points = £1). You will always receive at least £{{ base}}, even if your points would convert to less.
+            You cannot earn more than £{{ max }}, even if your points would convert to more.</p>
+
+</div>
+
+    <div class="section stages">
+        <h2 class="stages-header"><i class="fas fa-tasks icon-text"></i>Stages per round</h2>
+        <p><b>Phase 1</b> <i class="fa-solid fa-shirt"></i> <i>Choose a T-shirt</i></p>
+        <p>At the beginning of each round, you decide whether to wear a blue or red shirt by tapping the corresponding button.
+            The reward tables remain visible during this phase. You also have the opportunity to recall what your neighbors decided in the prior round.</p>
+
+        <p><b>Phase 2</b> <i class="fa fa-users"></i> <i>Group overview</i></p>
+        <p>You receive an overview of your choice and your neighbors' choices for this round.</p>
+
+        <p><b>Phase 3</b> <i class="fa fa-piggy-bank"></i> <i>Rewards</i></p>
+        <p>You see a breakdown of your rewards, calculated based on your preference
+    {% if role == Constants.majority %}
+        and coordination with your neighbors
+    {% endif %}
+    (see the table above).</p>
+
+          <div class="alert alert-warning" style="font-weight: bold; margin-top: 10px;">
+        <i class="fas fa-exclamation-triangle"></i>
+        At times, you might have to wait while other players decide. Don’t worry — the game will move forward as soon as all players have submitted their choices.
+    </div>
+
+    </div>
+
+     <div class="section introduction">
+    <h2 class="stages-header"><i class="fas fa-clock"></i> Time per round</h2>
+    <p>
+        In each round, you will have <strong>{{ Constants.decision_pages_timeout_seconds }} seconds</strong>
+        to select a t-shirt. After that, you will have another <strong>{{ Constants.other_pages_timeout_seconds }} seconds</strong>
+        to view the choices made by your neighbors. Pay close attention! If you do not make a selection within the allotted time,
+        the game will end for you!
+    </p>
+</div>
+
+
+    <div class="encouragement">
+        <p><i class="fas fa-heart icon-text"></i>Your preferred shirt color in the game is
+            <b class="{% if role == Constants.minority %} blue-role {% else %} red-role {% endif %}">
+                {{ role }}
+            </b>
+        </p>
+        <p>Once you have read the instructions carefully, you can proceed by clicking on 'Next'.</p>
+        <div class="next-button-container">
+            <button class="btn-primary">Next</button>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const nextBtn = document.querySelector('.btn-primary');
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', function (event) {
+           const confirmed = confirm(
+               "Please make sure you have read and understood the instructions carefully. Do you want to continue?"
+           );
+            if (!confirmed) {
+                event.preventDefault();
+            } else {
+                const form = nextBtn.closest('form');
+                if (form) {
+                    form.submit();
+                }
+            }
+        });
+    }
+});
+</script>
+
+{% endblock content %}

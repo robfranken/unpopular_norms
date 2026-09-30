@@ -1,0 +1,113 @@
+{% extends "global/Page.html" %}
+{% load otree static %}
+
+{% block custom_styles %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap');
+    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css');
+
+    body {
+        font-family: 'Montserrat', sans-serif;
+        background-color: #eef1f5;
+        color: #4a4a4a;
+    }
+
+    .container {
+        max-width: 800px;
+        margin: 30px auto;
+        padding: 20px;
+    }
+
+    .form-card {
+        background-color: #ffffff;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 6px 10px rgba(0, 0, 0, 0.1);
+        border: 1px solid #ddd;
+    }
+
+    h3 {
+        font-size: 2em;
+        color: #333;
+        text-align: center;
+        margin-bottom: 30px;
+        font-weight: bold;
+    }
+
+    label {
+        font-weight: 600;
+        margin-top: 1em;
+        display: block;
+    }
+
+    textarea, select, input[type="text"], input[type="number"] {
+        width: 100%;
+        padding: 10px;
+        margin-top: 6px;
+        margin-bottom: 15px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+
+    .radio-inline {
+        margin-right: 15px;
+    }
+
+    .next-button-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 24px;
+    }
+
+    .btn-primary {
+        font-size: 1rem;
+        color: #fff;
+        background-color: #4a86e8;
+        border: none;
+        border-radius: 30px;
+        padding: 15px 30px;
+        font-weight: 600;
+        transition: box-shadow 0.2s, transform 0.2s;
+    }
+
+    .btn-primary:hover {
+        background-color: #3a72bb;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .instruction-box {
+    background-color: #f9f9fc;
+    border-left: 5px solid #4a86e8;
+    padding: 20px;
+    margin-bottom: 30px;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+
+
+</style>
+{% endblock %}
+
+
+{% block content %}
+<div class="container">
+    <div class="form-card">
+        <h3><i class="fas fa-comments card-icon"></i> Feedback</h3>
+
+      <div class="instruction-box">
+    <p>
+        Thanks for participating in this study.
+        Your feedback is extremely valuable and will help us improve the clarity, structure, and overall experience of the experiment.
+        Please take a moment to answer the following questions — feel free to be honest and detailed.
+    </p>
+</div>
+
+        {{ formfields }}
+
+        <div class="next-button-container">
+            <button class="btn-primary" type="submit">Submit</button>
+        </div>
+    </div>
+</div>
+{% endblock %}

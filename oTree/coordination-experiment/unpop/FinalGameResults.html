@@ -1,0 +1,217 @@
+{% extends "global/Page.html" %}
+{% load otree static %}
+
+{% block custom_styles %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap');
+    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css');
+
+    body {
+        font-family: 'Montserrat', sans-serif;
+        background-color: #eef1f5;
+        color: #4a4a4a;
+    }
+
+    .container {
+        max-width: 1000px;
+        margin: 30px auto;
+        padding: 20px;
+    }
+
+    .table-container {
+        background-color: #ffffff;
+        padding: 30px;
+        margin-top: 30px;
+        border-radius: 8px;
+        box-shadow: 0 6px 10px rgba(0, 0, 0, 0.1);
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border: 1px solid #ddd;
+        /* max-height: 500px;*/
+        /*overflow-y: auto;*/
+    }
+
+    h3 {
+        font-size: 2em;
+        color: #333;
+        text-align: center;
+        margin-bottom: 30px;
+        font-weight: bold;
+    }
+
+    .table tbody tr:hover {
+        background-color: #f0f8ff;
+        transition: background-color 0.3s ease-in-out;
+    }
+
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 600px;
+    }
+
+    .table th, .table td {
+        padding: 8px 10px;
+        border-bottom: 1px solid #ddd;
+        text-align: center;
+        font-size: 0.85em;
+    }
+
+    .table th {
+        background-color: #f4f4f4;
+        font-weight: bold;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
+
+    .card {
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+        border-radius: 8px;
+        margin-top: 2em;
+        overflow: hidden;
+    }
+
+    .card-header {
+        background-color: #2980B9;
+        color: #FFFFFF;
+        font-size: 1.5em;
+        padding: 10px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+    }
+
+    .card-icon {
+        display: inline-block;
+        font-size: 1.2em;
+        margin-left: 10px;
+    }
+
+    .card-body {
+        background-color: #FFF;
+        padding: 20px;
+    }
+
+    #redirect-msg {
+        text-align: center;
+        font-weight: bold;
+        margin-top: 20px;
+        color: #2c3e50;
+    }
+
+    #fallback-link {
+        text-align: center;
+        margin-top: 10px;
+        font-size: 0.9em;
+    }
+
+   .next-button-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 24px;
+    }
+
+    .btn-primary {
+        font-size: 1rem;
+        color: #fff;
+        background-color: #4a86e8;
+        border: none;
+        border-radius: 30px;
+        padding: 15px 30px;
+        font-weight: 600;
+        display: inline-block;
+        transition: box-shadow 0.2s, transform 0.2s;
+    }
+
+    .btn-primary:hover {
+        background-color: #3a72bb;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+    }
+
+    @media (max-width: 600px) {
+        .form-container {
+            padding: 20px;
+        }
+
+        .table-container {
+            padding: 20px;
+        }
+
+        .table th,
+        .table td {
+            font-size: 0.9em;
+        }
+    }
+
+      .consent {
+    background-color: #fff8e1;
+    border: 1px solid #fdd835;
+    padding: 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    margin-top: 30px;
+  }
+
+
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="container">
+    <div class="table-container">
+
+        <h3><i class="fas fa-trophy card-icon"></i> Final result</h3>
+
+        {% if test %}
+        <div class="consent">
+            <p><strong>NOTE:</strong> Since this is a pilot version of our experiment, you will receive a <b>fixed reward</b>, so you can ignore the earnings and payout shown below.</p>
+        </div>
+
+
+<br>
+{% endif %}
+        <div class="card mt-5 shadow-lg">
+            <div class="card-header">
+                <span>Final payout</span>
+                <i class="fas fa-chart-line card-icon"></i>
+            </div>
+            <div class="card-body">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Player</th>
+                            <th>Accumulated Earnings</th>
+                            <th>Total Payout</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    <tr>
+        <td rowspan="3">YOU</td>
+        <td rowspan="3">{{ accumulated_earnings }}</td>
+        <td><i class="fas fa-coins"></i> Base: £{{ base }}</td>
+    </tr>
+    <tr>
+        <td><i class="fas fa-gift"></i> Bonus: £{{ bonus }}</td>
+    </tr>
+    <tr>
+        <td><i class="fas fa-trophy"></i> <strong>Total: £{{ euros }}</strong></td>
+    </tr>
+</tbody>
+
+                </table>
+            </div>
+        </div>
+        <br>
+  <div class="next-button-container">
+        <button class="btn-primary">Next</button>
+    </div>
+    </div>
+
+</div>
+
+
+{% endblock %}

@@ -1,0 +1,167 @@
+
+{{ block title }}
+Information letter and consent form for the study "The Fashion Dilemma"
+{{ endblock }}
+
+{% block content %}
+
+<style>
+  .section {
+    background-color: #f9f9f9;
+    padding: 15px 20px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  }
+
+  details summary {
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    outline: none;
+  }
+
+  details[open] summary {
+    margin-bottom: 10px;
+  }
+
+  .consent {
+    background-color: #fff8e1;
+    border: 1px solid #fdd835;
+    padding: 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    margin-top: 30px;
+  }
+
+  label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  input[type="checkbox"] {
+    transform: scale(1.3);
+    margin-top: 5px;
+  }
+
+  h1 {
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
+
+  p {
+    line-height: 1.7;
+  }
+
+  a {
+    color: #1976d2;
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+</style>
+
+<p>Please read the information below carefully. If you do not give consent, you cannot participate in this study.</p>
+
+
+<br>
+
+<details class="section">
+  <summary>Purpose of the study</summary>
+  <p>This study aims to understand how people make decisions in different situations.</p>
+</details>
+
+<details class="section">
+  <summary>What does participation involve?</summary>
+  <p>You will take part in a computer-based decision-making task. You can earn points based on your own choices, those of others, and chance. These points will be converted into money and paid to you via Prolific. Participation is expected to take approximately 25 minutes.</p>
+</details>
+
+<details class="section">
+  <summary>Compensation</summary>
+  <ul>
+    <li>
+      Base payment: <strong>£2.50</strong> for completing the study.
+    </li>
+    <li>
+      Bonus payment: up to <strong>£5.00</strong>, depending on your and your group members' choices.
+    </li>
+    <li>
+      Maximum total payment: <strong>£7.50</strong>.
+    </li>
+  </ul>
+  <p>Because this is a live study, participation cannot be fully guaranteed. If you enter a session but cannot be grouped due to a full session, you will still receive the base payment for arriving on time.</p>
+
+</details>
+
+<details class="section">
+  <summary>Data collection & privacy</summary>
+  <p>No personal or sensitive data will be collected. Your Prolific ID will be stored, for payment and administrative purposes only. Decisions are stored under an anonymous participant number. Data will be stored securely and anonymized after the session. Anonymized data will be shared publicly for research purposes (at <a href="https://ssh.datastations.nl/" target="_blank">DANS Data Station Social Sciences and Humanities</a>). You may request deletion of your data before anonymization by contacting <a href="mailto:r.j.f.franken@uu.nl">r.j.f.franken@uu.nl</a>. Once data are anonymized, deletion is no longer possible.</p>
+</details>
+
+<details class="section">
+  <summary>Risks</summary>
+  <p>The Faculty Ethics Review Committee of the Faculty of Social Sciences at Utrecht University has approved this study.
+  All information provided in this study is truthful; there is no intentional deception. There are no expected risks or discomforts.</p>
+</details>
+
+<details class="section">
+  <summary>Voluntary participation and withdrawal</summary>
+  <p>Participation is voluntary. You may withdraw at any time without explanation or consequences. If you stop after the experiment has started, the session may be ended. Data collected until then will be used, unless you request otherwise.</p>
+</details>
+
+<details class="section">
+  <summary>Questions or complaints</summary>
+  <p>For questions, contact the study leader Rob Franken: <a href="mailto:r.j.f.franken@uu.nl">r.j.f.franken@uu.nl</a>.<br>
+  To file a formal complaint, contact the independent Complaints Officer: <a href="mailto:klachtenfunctionaris-fetcsocwet@uu.nl">klachtenfunctionaris-fetcsocwet@uu.nl</a>. Please include the reference number: 25-0348</p>
+</details>
+
+<div class="consent">
+  <p>
+    By clicking <strong>“I consent”</strong>, you confirm:
+  </p>
+
+  <ol type="A">
+    <li>that you have read and understood the information provided above about the study.</li>
+    <li>that you voluntarily agree to participate and give consent for the collection, use, and storage of your data as described.</li>
+  </ol>
+
+  {{ formfields }}
+</div>
+
+<br>
+{{ next_button }}
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const form = document.querySelector("form");
+
+    function getConfirmMessage() {
+        const consentNo = document.querySelector('input[name="consent"][value="False"]:checked');
+
+        if (consentNo) {
+            return "Are you sure? This means you cannot participate in the study.";
+        }
+
+        return null;
+    }
+
+    form.addEventListener("submit", function (event) {
+        const message = getConfirmMessage();
+
+        if (message) {
+            const confirmContinue = confirm(message);
+            if (!confirmContinue) {
+                event.preventDefault();
+            }
+        }
+    });
+
+});
+</script>
+
+{% endblock %}

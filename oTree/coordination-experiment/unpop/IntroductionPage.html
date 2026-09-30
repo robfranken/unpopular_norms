@@ -1,0 +1,208 @@
+{% load otree static %}
+
+{% block custom_styles %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap');
+    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css');
+
+    body {
+        font-family: 'Montserrat', sans-serif;
+        background-color: #f7f9fc;
+        color: #424242;
+        line-height: 1.6;
+    }
+
+    .experiment-container {
+        max-width: 900px;
+        margin: 3% auto;
+        padding: 2% 4%;
+        background-color: #fff;
+        border-radius: 15px;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    .header {
+        background-color: #2c3e50;
+        color: #fff;
+        padding: 30px;
+        text-align: center;
+        border-radius: 15px 15px 0 0;
+        margin: -2% -4% 4% -4%;
+    }
+
+    h1 {
+        font-size: 2.5rem;
+    }
+
+    p {
+        font-size: 1rem;
+    }
+
+    .icon-text {
+        margin-right: 0.5rem;
+    }
+
+    .table-responsive tbody tr:hover {
+        background-color: #f0f8ff;
+        transition: background-color 0.3s ease-in-out;
+    }
+
+    .table-container {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+    }
+
+    .table-responsive {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .table-responsive th,
+    .table-responsive td {
+        padding: 1px;
+        border-bottom: 1px solid #ddd;
+        text-align: center;
+        font-size: 0.85em;
+    }
+
+    .table-responsive th {
+        background-color: #f4f4f4;
+        position: sticky;
+        top: 0;
+        font-size: 0.85em;
+        z-index: 2;
+    }
+
+    h3 {
+        text-align: left !important;
+        margin-bottom: 5px;
+    }
+
+    .next-button-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 24px;
+    }
+
+    .btn-primary {
+        font-size: 1rem;
+        color: #fff;
+        background-color: #4a86e8;
+        border: none;
+        border-radius: 30px;
+        padding: 15px 30px;
+        font-weight: 600;
+        display: inline-block;
+        transition: box-shadow 0.2s, transform 0.2s;
+    }
+
+    .btn-primary:hover {
+        background-color: #3a72bb;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<script>
+    // audio alert (see https://s3.amazonaws.com/otreehub/browsable_source/2ce0564a-3359-48e7-b1d4-8ff436138a55/audio_alert/index.html)
+  document.addEventListener("DOMContentLoaded", function () {
+    let msg = new SpeechSynthesisUtterance("Get ready to play!");
+    msg.lang = "en-US";
+    window.speechSynthesis.speak(msg);
+  });
+</script>
+
+
+<div class="experiment-container">
+
+    <div class="header">
+        <h1><i class="fa-solid fa-shirt"></i> {{ Constants.title }}</h1>
+    </div>
+
+    <div class="section overview">
+        <p>
+            You have been grouped with {{ others }} other players and placed on a network. In this network, you are connected to
+            <strong>{{ degree }} neighbor(s)</strong>.
+        </p>
+
+        {% if role == Constants.majority %}
+        <br>
+            <h3><i class="fa-solid fa-rotate icon-text"></i>Updated rewards</h3>
+            <p>
+                Below, you can find your <strong>updated reward tables</strong>. This may differ from the example you saw earlier.
+                Again, Table&nbsp;1 shows the points you receive for each shirt color,
+                and Table&nbsp;2 the additional points depending on how many of your neighbors choose the same color.
+            </p>
+        <br>
+        {% endif %}
+    </div>
+
+    {% if role == Constants.majority %}
+        <!-- TABLE 1 -->
+        <h3 style="font-size: 1rem;"><b>Table 1.</b> Fixed rewards for shirt choices</h3>
+        <div class="table-container">
+            <table class="table-responsive">
+                <thead>
+                    <tr>
+                        <th style="width: 40%;"></th>
+                        <th style="color: red;"><i class="fa-solid fa-shirt"></i></th>
+                        <th style="color: blue;"><i class="fa-solid fa-shirt"></i></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td></td>
+                        <td>{{ Constants.s }} points</td>
+                        <td>0 points</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <br>
+
+        <!-- TABLE 2 -->
+        <h3 style="font-size: 1rem;"><b>Table 2.</b> Coordination rewards for shirt choices</h3>
+        <div class="table-container">
+            <table class="table-responsive">
+                <thead>
+                    <tr>
+                        <th>Aligned neighbors</th>
+                        <th style="color: red;"><i class="fa-solid fa-shirt"></i></th>
+                        <th style="color: blue;"><i class="fa-solid fa-shirt"></i></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in table_data %}
+                        <tr>
+                            <td>{{ row.c_n }}</td>
+                            <td>{{ row.wstar }} points</td>
+                            <td>{{ row.zstar }} points</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
+    <p style="
+        margin-top: 30px;
+        padding: 15px;
+        background-color: #e8f4fd;
+        border-left: 4px solid #4a86e8;
+        border-radius: 6px;
+        text-align: center;
+        font-weight: 600;
+    ">
+        You can now start with <strong>Round 1</strong>!
+    </p>
+
+    <div class="next-button-container">
+        <button class="btn-primary" type="submit">Start</button>
+    </div>
+
+</div>
+{% endblock %}

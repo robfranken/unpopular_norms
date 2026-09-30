@@ -1,0 +1,72 @@
+{% extends "global/Page.html" %}
+{% load otree static %}
+
+{% block custom_styles %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap');
+    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
+    body {
+        font-family: 'Montserrat', sans-serif;
+        background-color: #eef1f5;
+        color: #4a4a4a;
+    }
+
+    .form-container {
+        position: relative;
+        margin-top: 40px;
+        padding: 30px;
+        border: 1px solid #dfdfdf;
+        border-radius: 8px;
+        box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+        background-color: #f8f9fc;
+        text-align: center;
+    }
+
+    h3 {
+        font-size: 2em;
+        color: #333;
+        text-align: center;
+        margin-bottom: 30px;
+        font-weight: bold;
+    }
+
+    .next-button-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 24px;
+    }
+
+    .btn-primary {
+        font-size: 1rem;
+        color: #fff;
+        background-color: #4a86e8;
+        border: none;
+        border-radius: 30px;
+        padding: 15px 30px;
+        font-weight: 600;
+        display: inline-block;
+        transition: box-shadow 0.2s, transform 0.2s;
+    }
+
+    .btn-primary:hover {
+        background-color: #3a72bb;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+  <h3>
+    <i class="fa-solid fa-hourglass"></i> Time up!
+</h3>
+    <p>You did not decide in time, so the game chose for you. Click the button below in time to continue the game.</p>
+
+    <form method="post">
+        <button type="submit" name="return_choice" value="true" class="btn-primary">
+            Return
+        </button>
+    </form>
+</div>
+{% endblock %}

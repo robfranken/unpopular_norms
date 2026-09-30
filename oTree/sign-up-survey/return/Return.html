@@ -1,0 +1,40 @@
+{% block content %}
+<div id="failed-message" style="display:none; text-align:center; margin-top:50px; font-size:20px;">
+    <p>
+        You cannot participate because you did not demonstrate sufficient understanding of the game.
+    </p>
+    <p>
+        You will return to Prolific in <span id="countdown">10</span> seconds.
+    </p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let completionlink = js_vars.completionlink;
+    let failedChecks = js_vars.failed_checks;
+
+    window.onload = function() {
+
+        if (failedChecks) {
+
+            document.getElementById("failed-message").style.display = "block";
+
+            let countdown = 10;
+
+            let interval = setInterval(function() {
+                countdown--;
+                document.getElementById("countdown").textContent = countdown;
+
+                if (countdown <= 0) {
+                    clearInterval(interval);
+                    window.location.href = completionlink;
+                }
+            }, 1000);
+
+        } else {
+            window.location.href = completionlink;
+        }
+    };
+</script>
+{% endblock %}

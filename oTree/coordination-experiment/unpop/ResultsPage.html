@@ -1,0 +1,212 @@
+{% extends "global/Page.html" %}
+{% load otree static %}
+
+{% block custom_styles %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap');
+    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
+
+    body {
+        font-family: 'Montserrat', sans-serif;
+        background-color: #eef1f5;
+        color: #4a4a4a;
+    }
+
+    .form-container {
+        position: relative;
+        margin-top: 40px;
+        padding: 30px;
+        border: 1px solid #dfdfdf;
+        border-radius: 8px;
+        box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+        background-color: #f8f9fc;
+        text-align: center;
+    }
+
+    .table-container {
+        max-height: 500px;
+        overflow-y: auto;
+        display: block;
+        background-color: #ffffff;
+        padding: 30px;
+        margin-top: 30px;
+        border-radius: 8px;
+        box-shadow: 0 6px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    h3 {
+        font-size: 2em;
+        color: #333;
+        text-align: center;
+        margin-bottom: 30px;
+        font-weight: bold;
+    }
+
+    .table-responsive tbody tr:hover {
+        background-color: #f0f8ff;
+        transition: background-color 0.3s ease-in-out;
+    }
+
+    .table-responsive {
+        width: 100%;
+        border-collapse: collapse;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .table-responsive thead {
+        position: relative;
+    }
+
+    .table-responsive th,
+    .table-responsive td {
+        padding: 1px;
+        border-bottom: 1px solid #ddd;
+        text-align: center;
+        font-size: 0.85em;
+    }
+
+    .table-responsive th {
+        background-color: #f4f4f4;
+        position: sticky;
+        font-size: 0.85em;
+        top: 0;
+        z-index: 2;
+    }
+
+    .shirt-icon {
+        font-size: 1.5em;
+        margin-right: 8px;
+    }
+
+    .day-info {
+        font-size: 0.9em;
+        font-weight: normal;
+        color: #343a40;
+        text-align: right;
+        margin-top: 20px;
+    }
+
+    .next-button-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 24px;
+    }
+
+    .btn-primary {
+        font-size: 1rem;
+        color: #fff;
+        background-color: #4a86e8;
+        border: none;
+        border-radius: 30px;
+        padding: 15px 30px;
+        font-weight: 600;
+        display: inline-block;
+        transition: box-shadow 0.2s, transform 0.2s;
+    }
+
+    .btn-primary:hover {
+        background-color: #3a72bb;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+    }
+
+    @media (max-width: 600px) {
+        .form-container {
+            padding: 20px;
+        }
+
+        .table-container {
+            padding: 20px;
+        }
+
+        .table th,
+        .table td {
+            font-size: 0.9em;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h3><i class="fa-solid fa-coins"></i> Your result</h3>
+
+    <div class="table-container">
+        <table class="table-responsive">
+            <thead>
+                <tr>
+                    <th>Player</th>
+                    <th>Decision</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>YOU</strong></td>
+                    <td>
+                        {% if my_choice == 'Blue' %}
+                            <span class="shirt-icon" style="color: #007bff;">
+                                <i class="fas fa-tshirt"></i>
+                            </span>
+                        {% elif my_choice == 'Red' %}
+                            <span class="shirt-icon" style="color: #ff0000;">
+                                <i class="fas fa-tshirt"></i>
+                            </span>
+                        {% else %}
+                            <span class="shirt-icon" style="color: #6c757d;">
+                                <i class="fas fa-times-circle"></i>
+                            </span>
+                        {% endif %}
+                    </td>
+                </tr>
+
+                {% for neighbor in neighbors_info %}
+                <tr>
+                    <td>Neighbor {{ neighbor.neighbor }}</td>
+                    <td>
+                        {% if neighbor.choice == 'Blue' %}
+                            <span class="shirt-icon" style="color: #007bff;">
+                                <i class="fas fa-tshirt"></i>
+                            </span>
+                        {% elif neighbor.choice == 'Red' %}
+                            <span class="shirt-icon" style="color: #ff0000;">
+                                <i class="fas fa-tshirt"></i>
+                            </span>
+                        {% else %}
+                            <span class="shirt-icon" style="color: #6c757d;">
+                                <i class="fas fa-times-circle"></i>
+                            </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <br>
+    <p><strong>Your payoff:</strong> {{ my_payoff }}</p>
+
+
+    <div class="next-button-container">
+        <button class="btn-primary">Next</button>
+    </div>
+
+    <div class="day-info">
+        <i class="far fa-clock"></i> Day: {{ round_number }}
+    </div>
+</div>
+
+<audio id="ping-sound" src="{% static 'sounds/ping.mp3' %}" preload="auto"></audio>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+      // play ping sound
+      const ping = document.getElementById("ping-sound");
+      ping.play().catch(e => {
+          console.log("Audio playback blocked:", e);
+      });
+  });
+</script>
+
+{% endblock %}

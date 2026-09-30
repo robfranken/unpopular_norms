@@ -1,0 +1,307 @@
+{% extends "otree/WaitPage.html" %}
+
+
+{% block custom_styles %}
+<style>
+
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap');
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
+
+/* Page Styles */
+body {
+    font-family: 'Montserrat', sans-serif;
+    background-color: #eef1f5;
+    color: #4a4a4a;
+}
+
+.instruction-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.instruction-modal {
+    background: white;
+    padding: 25px;
+    width: 80%;
+    max-width: 600px;
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    line-height: 1.5;
+}
+
+.instruction-close {
+    margin-top: 15px;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+
+
+</style>
+{% endblock %}
+
+{% load otree %}
+
+{% block content %}
+<p>Waiting for other participants to join...</p>
+
+<div style="background:#eee; width:300px; border-radius:5px;">
+  <div style="background:#4caf50; width:{{ percent }}%; height:20px; border-radius:5px;"></div>
+</div>
+<p>{{ percent }}% complete</p>
+
+<p><b>Please stay on this page.</b> If you switch tabs or windows, you’ll become inactive
+and won’t be grouped until you return.</p>
+
+<p id="refresh-msg" style="margin-top: 10px; font-style: italic; color: gray;">
+    Refreshing in <span id="countdown">10</span> seconds...
+</p>
+
+<div style="text-align:center; margin-bottom:15px;">
+    <button id="instruction-summary-btn"
+            style="padding:8px 14px; font-size:15px;">
+        For a summary of the instructions, click here
+    </button>
+</div>
+
+<hr style="margin: 20px 0;">
+
+<p style="font-style: italic; text-align: center;">
+    While waiting for other players, challenge yourself with this minigame!<br>
+    Press
+    <span style="
+        display: inline-block;
+        padding: 4px 8px;
+        margin: 0 4px;
+        border: 1px solid #333;
+        border-radius: 4px;
+        background: #f0f0f0;
+        font-weight: bold;
+    ">
+        <i class="fas fa-arrow-up"></i>
+    </span> to jump (hold to jump higher) and avoid the obstacles.
+</p>
+
+
+<div style="text-align:center;">
+    <canvas class="dino-canvas" width="600" height="150" style="border:1px solid #ccc;"></canvas>
+    <br>
+    <button class="dino-start-btn" style="margin-top: 10px; padding: 6px 12px; font-size: 16px;">
+        Start
+    </button>
+</div>
+
+<div class="instruction-overlay" id="instruction-overlay">
+    <div class="instruction-modal" id="instruction-modal">
+
+        <h3>Summary of instructions</h3>
+        <p>
+            You will play an interactive decision-making game with <strong>50 players</strong>, spanning between <strong>22–28 rounds</strong>.
+            In each round, choose between wearing a red or blue shirt. Some players prefer red, others blue. One group holds a <strong>majority</strong>, but you don't know which one.
+        </p>
+        <p>
+            At the start of each round, tap the button to choose your color.
+            You may also recall your neighbors’ previous choices.
+        </p>
+        <p>
+            Decision time: <strong>60 seconds</strong> in rounds 1–2, then <strong>20 seconds</strong> afterward. Pay close attention! If you time out, the game will choose for you. Time out twice, and you will exit the game.
+        </p>
+        <p>
+            <i>Your preferred shirt color is
+                <strong>{% if role == "Red" %}
+                    <span style="color:red;">Red</span>
+                {% elif role == "Blue" %}
+                    <span style="color:blue;">Blue</span>
+                {% else %}
+                    {{ role }}</strong>
+                {% endif %}
+            </i>
+        </p>
+        <button class="instruction-close" id="instruction-close-btn">Close</button>
+
+    </div>
+</div>
+
+
+{% endblock %}
+
+{% block scripts %}
+
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
+/>
+<script>
+    let seconds = 10;
+    const countdownEl = document.getElementById('countdown');
+
+    window.gameActive = false;
+    window.overlayActive = false;
+
+    // Countdown + reload (pause if game or overlay active)
+    const countdownInterval = setInterval(() => {
+        if (!window.gameActive && !window.overlayActive) {
+            seconds--;
+            countdownEl.textContent = seconds;
+
+            if (seconds <= 0) {
+                clearInterval(countdownInterval);
+                window.location.reload();
+            }
+        }
+    }, 1000);
+</script>
+
+<script>
+(function() {
+    const canvas = document.querySelector('.dino-canvas');
+    const ctx = canvas.getContext('2d');
+    const startBtn = document.querySelector('.dino-start-btn');
+    let game = null;
+
+    let highScore = parseInt(localStorage.getItem('dinoHighScore')) || 0;
+
+    function createGame() {
+        let dino = {x: 50, y: 120, width: 20, height: 20, dy: 0, jumping: false, jumpTime: 0};
+        let gravity = 0.8;
+        let jumpPower = -8;
+        let jumpHoldPower = -0.5;
+        let maxJumpHold = 50;
+        let obstacles = [];
+        let score = 0;
+        let gameOver = false;
+        let keys = {};
+
+        function spawnObstacle() {
+            let height = Math.random() < 0.5 ? 20 : 30;
+            obstacles.push({x: 600, y: 120, width: 20, height});
+        }
+
+        function update() {
+            if (gameOver) return;
+
+            dino.dy += gravity;
+            dino.y += dino.dy;
+
+            if (dino.y > 120) {
+                dino.y = 120;
+                dino.dy = 0;
+                dino.jumping = false;
+                dino.jumpTime = 0;
+            }
+
+            if ((keys['ArrowUp'] || keys['Space']) && dino.jumping && dino.jumpTime < maxJumpHold) {
+                dino.dy += jumpHoldPower;
+                dino.jumpTime++;
+            }
+
+            obstacles.forEach(ob => ob.x -= 6);
+
+            for (let ob of obstacles) {
+                if (dino.x < ob.x + ob.width &&
+                    dino.x + dino.width > ob.x &&
+                    dino.y < ob.y + ob.height &&
+                    dino.y + dino.height > ob.y) {
+
+                    gameOver = true;
+                    window.gameActive = false;
+
+                    if (score > highScore) {
+                        highScore = score;
+                        localStorage.setItem('dinoHighScore', highScore);
+                    }
+
+                    setTimeout(() => window.location.reload(), 800);
+                }
+            }
+
+            obstacles = obstacles.filter(ob => ob.x + ob.width > 0);
+
+            if (Math.random() < 0.02) spawnObstacle();
+
+            score++;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = "green";
+            ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
+
+            ctx.fillStyle = "red";
+            obstacles.forEach(ob => ctx.fillRect(ob.x, ob.y, ob.width, ob.height));
+
+            ctx.fillStyle = "black";
+            ctx.font = "16px Arial";
+            ctx.fillText("Score: " + score, 10, 20);
+            ctx.fillText("High Score: " + highScore, 10, 40);
+        }
+
+        function loop() {
+            if (!gameOver) {
+                update();
+                draw();
+                game.animationFrame = requestAnimationFrame(loop);
+            } else {
+                ctx.fillStyle = "black";
+                ctx.font = "24px Arial";
+                ctx.font = "24px Arial";
+                ctx.fillText("Game Over!", 230, 80);
+            }
+        }
+
+        document.addEventListener('keydown', e => {
+            keys[e.code] = true;
+
+            if ((e.code === "Space" || e.code === "ArrowUp") && !dino.jumping) {
+                dino.dy = jumpPower;
+                dino.jumping = true;
+                dino.jumpTime = 0;
+            }
+        });
+
+        document.addEventListener('keyup', e => keys[e.code] = false);
+
+        game = { loop };
+        loop();
+    }
+
+    startBtn.addEventListener('click', () => {
+        startBtn.disabled = true;
+        window.gameActive = true;
+        createGame();
+    });
+})();
+
+// instruction summary
+const summaryBtn = document.getElementById("instruction-summary-btn");
+const overlay = document.getElementById("instruction-overlay");
+const closeBtn = document.getElementById("instruction-close-btn");
+
+summaryBtn.addEventListener("click", () => {
+    overlay.style.display = "flex";
+    window.overlayActive = true;
+});
+
+closeBtn.addEventListener("click", () => {
+    overlay.style.display = "none";
+    window.overlayActive = false;
+});
+
+overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) {
+        overlay.style.display = "none";
+        window.overlayActive = false;
+    }
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,241 @@
+{% extends "global/Page.html" %}
+{% load otree static %}
+
+{% block custom_styles %}
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap');
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
+
+body {
+    font-family: 'Montserrat', sans-serif;
+    background-color: #eef1f5;
+    color: #4a4a4a;
+}
+.form-container {
+    position: relative;
+    margin-top: 40px;
+    padding: 30px;
+    border: 1px solid #dfdfdf;
+    border-radius: 8px;
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+    background-color: #f8f9fc;
+    text-align: center;
+    color: black;
+}
+
+.btn-primary {
+    font-size: 1rem;
+    color: #fff;
+    background-color: #4a86e8;
+    border: none;
+    border-radius: 30px;
+    padding: 15px 30px;
+    font-weight: 600;
+    display: inline-block;
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.btn-primary:hover {
+    background-color: #3a72bb;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.next-button-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 24px;
+}
+
+.table-container {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+}
+
+.table-responsive {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table-responsive th, .table-responsive td {
+    padding: 4px 6px;
+    border-bottom: 1px solid #ddd;
+    text-align: center;
+    font-size: 0.85em;
+}
+
+.table-responsive th {
+    background-color: #f4f4f4;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.table-responsive tbody tr:hover {
+    background-color: #f0f8ff;
+    transition: background-color 0.3s ease-in-out;
+}
+
+h3 {
+    text-align: left !important;
+    margin-bottom: 5px;
+}
+
+.scenario-container {
+    margin-top: 20px;
+    padding: 20px;
+    border: 1px solid #dfdfdf;
+    border-radius: 8px;
+    background-color: #fdfdfd;
+    text-align: left;
+}
+
+.scenario-container h4 {
+    margin-bottom: 10px;
+}
+
+.scenario-question {
+    margin: 10px 0;
+    text-align: left;
+}
+
+.scenario-visual {
+    margin-bottom: 10px;
+    font-size: 1.1em;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+.scenario-visual i {
+    font-size: 1.3em;
+    vertical-align: middle;
+}
+
+input[type=number] {
+    width: 80px;
+    text-align: center;
+}
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h2 class="card-title" style="margin-bottom: 10px; font-weight: 700;">
+        Comprehension check
+    </h2>
+    <p>We want to make sure you understand how your choices affect your points. You can only participate in the game if you demonstrate sufficient understanding.</p>
+    <p>
+    Below, we present two scenarios showing your neighbors’ choices.
+    Please answer correctly how many points you would earn for each of your options,
+    based on the payoff
+    {% if role == Constants.minority %}
+        table
+    {% else %}
+        tables
+    {% endif %}
+    below.
+</p>
+
+    <h3 style="font-size: 1rem;"><b>Table 1.</b> Fixed rewards for shirt choices</h3>
+    <div class="table-container">
+        <table class="table-responsive">
+            <thead>
+                <tr>
+                    <th style="width: 40%;"></th>
+                    <th style="text-align: center; color: red;">
+                        <i class="fa-solid fa-shirt"></i>
+                    </th>
+                    <th style="text-align: center; color: blue;">
+                        <i class="fa-solid fa-shirt"></i>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td></td>
+                    {% if role == Constants.minority %}
+                        <td>0 points</td>
+                        <td>{{ Constants.e }} points</td>
+                    {% else %}
+                        <td>{{ Constants.s }} points</td>
+                        <td>0 points</td>
+                    {% endif %}
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <br>
+
+    {% if role != Constants.minority %}
+    <h3 style="font-size: 1rem;"><b>Table 2.</b> Coordination rewards for shirt choices</h3>
+    <div class="table-container">
+        <table class="table-responsive">
+            <thead>
+                <tr>
+                    <th style="width: 40%;">Aligned neighbors</th>
+                    <th style="text-align: center; color: red;">
+                        <i class="fa-solid fa-shirt"></i>
+                    </th>
+                    <th style="text-align: center; color: blue;">
+                        <i class="fa-solid fa-shirt"></i>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in table_data %}
+                    <tr>
+                        <td>{{ row.c_n }}</td>
+                        <td>{{ row.wstar }} points</td>
+                        <td>{{ row.zstar }} points</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <form method="post">
+
+        <div class="scenario-container">
+            <h4>Scenario 1: Your neighbors wear ... </h4>
+            <div class="scenario-visual">
+                <span>0 <i class="fa-solid fa-shirt" style="color: red;"></i></span>
+                <span>{{ degree }} <i class="fa-solid fa-shirt" style="color: blue;"></i></span>
+            </div>
+            <div class="scenario-question">
+                <label><b>A.</b> How many points would you earn if you pick <strong>Red</strong>?</label>
+                {{ form.q_red_zero }}
+            </div>
+            <div class="scenario-question">
+                <label><b>B.</b> How many points would you earn if you pick <strong>Blue</strong>?</label>
+                {{ form.q_blue_zero }}
+            </div>
+        </div>
+
+        <div class="scenario-container">
+            <h4>Scenario 2: Your neighbors wear ...</h4>
+            <div class="scenario-visual">
+                <span> {{ red_neighbors_half }} <i class="fa-solid fa-shirt" style="color: red;"></i></span>
+                <span> {{ blue_neighbors_half }} <i class="fa-solid fa-shirt" style="color: blue;"></i></span>
+            </div>
+            <div class="scenario-question">
+                <label><b>C.</b> How many points would you earn if you pick <strong>Red</strong>?</label>
+                {{ form.q_red_half }}
+            </div>
+            <div class="scenario-question">
+                <label><b>D.</b> How many points would you earn if you pick <strong>Blue</strong>?</label>
+                {{ form.q_blue_half }}
+            </div>
+        </div>
+
+        <br>
+        <div class="next-button-container">
+            <button type="submit" class="btn btn-primary">Continue</button>
+        </div>
+
+    </form>
+
+</div>
+{% endblock %}

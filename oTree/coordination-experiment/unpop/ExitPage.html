@@ -1,0 +1,43 @@
+{% extends "global/Page.html" %}
+{% load otree static %}
+
+{% block title %}
+Session Full
+{% endblock %}
+
+{% block content %}
+<div class="card p-4 mt-4 text-center">
+    <h3>Thank you for your interest!</h3>
+    <p class="mt-3">
+        {{ message }}
+    </p>
+    <p class="text-muted">
+        You will be redirected automatically to Prolific
+        in <span id="seconds">30</span> seconds.
+    </p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let completionlink = js_vars.completionlink;
+    let seconds = 30;
+
+    window.onload = function () {
+        const counter = document.getElementById("seconds");
+
+        const interval = setInterval(function () {
+            seconds--;
+
+            if (counter) {
+                counter.textContent = seconds;
+            }
+
+            if (seconds <= 0) {
+                clearInterval(interval);
+                window.location.href = completionlink;
+            }
+        }, 1000);
+    };
+</script>
+{% endblock %}

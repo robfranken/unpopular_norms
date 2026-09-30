@@ -1,0 +1,419 @@
+{% extends "global/Page.html" %}
+{% load otree static %}
+
+{% block custom_styles %}
+<style>
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap');
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
+
+/* Page Styles */
+body {
+    font-family: 'Montserrat', sans-serif;
+    background-color: #eef1f5;
+    color: #4a4a4a;
+}
+.form-container {
+    position: relative;
+    margin-top: 40px;
+    padding: 30px;
+    border: 1px solid #dfdfdf;
+    border-radius: 8px;
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+    background-color: #f8f9fc;
+    text-align: center;
+    color: black;
+}
+
+.button-container {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+}
+
+.button {
+    background-color: #ffffff;
+    border: 1px solid #dfdfdf;
+    color: #007bff;
+    padding: 0;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-size: 1em;
+    margin: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: box-shadow 0.3s, transform 0.3s, background-color 0.3s;
+    width: 150px;
+    height: 190px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.button-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    text-align: center;
+    height: 100%;
+}
+
+.button i {
+    font-size: 2.5em;
+    margin-bottom: 5px;
+}
+
+.button span {
+    font-weight: bold;
+    font-size: 0.8em;
+    color: black;
+}
+
+.button.red i {
+    color: #ff0000;
+}
+
+.button.blue i {
+    color: #007bff;
+}
+
+.button:hover {
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    transform: translateY(-8px) scale(1.1); /* hover effect */
+    background-color: #f9f9f9;
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.game-round-info {
+    position: absolute;
+    bottom: 10px;
+    right: 30px;
+    font-size: 0.9em;
+    color: #343a40;
+    font-weight: 500;
+}
+
+.table-responsive tbody tr:hover {
+    background-color: #f0f8ff;
+    transition: background-color 0.3s ease-in-out;
+}
+
+.table-container {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+}
+
+.table-responsive {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table-responsive th, .table-responsive td {
+    padding: 1px;
+    border-bottom: 1px solid #ddd;
+    text-align: center;
+    font-size: 0.85em;
+}
+
+.table-responsive th {
+    background-color: #f4f4f4;
+    position: sticky;
+    font-size: 0.85em;
+    top: 0;
+    z-index: 2;
+}
+
+h3 {
+    text-align: left !important ;
+    margin-bottom: 5px;
+}
+
+.question-button {
+    background-color: #ffffff;
+    border: 1px solid #dfdfdf;
+    color: #007bff;
+    font-size: 0.8em;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: inline-block;
+    transition: background-color 0.3s, box-shadow 0.3s;
+    margin-left: 10px;
+}
+
+.question-button:hover {
+    background-color: #f9f9f9;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.shirt-count {
+    display: none;
+     position: absolute;
+    margin-left: 10px;
+     margin-top: 2px;
+    font-size: 0.75em;
+    color: black;
+}
+#dropout-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 99999;
+}
+
+.dropout-message {
+    background: white;
+    padding: 50px 70px;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+    font-family: 'Montserrat', sans-serif;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.dropout-message h2 {
+    margin-bottom: 15px;
+    font-weight: 700;
+}
+
+.dropout-message p {
+    margin: 6px 0;
+    font-size: 1.1em;
+}
+
+#warning-banner {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 230, 230, 0.95);
+    color: #a00000;
+    padding: 12px 24px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(150,0,0,0.2);
+    font-size: 0.85em;
+    z-index: 99999;
+    opacity: 1;
+    transition: opacity 1s ease;
+    text-align: center;
+}
+
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if exit %}
+<div id="dropout-overlay">
+    <div class="dropout-message">
+        <h2>You have exited the game</h2>
+        <p>You did not proceed within the allowed time.</p>
+        <p>You may now close this window.</p>
+    </div>
+</div>
+{% endif %}
+
+{% if round_number == 3 or round_number == 4 %}
+    {% if not is_drop_out %}
+        <div id="warning-banner">
+            <strong> Warning</strong>: In the upcoming rounds you only have <strong>{{ timeout_seconds }} seconds</strong> to make a decision!
+        </div>
+    {% endif %}
+{% endif %}
+
+<div class="form-container">
+    <h1 class="card-title" style="margin-bottom: 30px;">
+        <i class="fa-solid fa-shirt"></i> T-shirt decision
+    </h1>
+
+    <p>Make your decision: Will you wear a Red or Blue T-shirt today?</p>
+
+    <div class="button-question-container">
+        <div class="button-container">
+            <button class="button red" name="choice" value="False" aria-label="Red" tabindex="0">
+                <div class="button-content">
+                    <i class="fa-solid fa-shirt"></i>
+                    <span>Red</span>
+                </div>
+            </button>
+
+            <button class="button blue" name="choice" value="True" aria-label="Blue" tabindex="0">
+                <div class="button-content">
+                    <i class="fa-solid fa-shirt"></i>
+                    <span>Blue</span>
+                </div>
+            </button>
+        </div>
+
+        {% if round_number > 1 %}
+        <div>
+            <button class="question-button" id="show-stats-btn">What did my neighbors wear yesterday?</button>
+
+            <span class="shirt-count" id="shirt-count">
+                {{ num_red_previous_round }} x <i class="fa-solid fa-shirt" style="color: red;"></i><br>
+                {{ num_blue_previous_round }} x <i class="fa-solid fa-shirt" style="color: blue;"></i>
+            </span>
+        </div>
+        {% endif %}
+
+
+    </div>
+    <br>
+
+    {% if role == Constants.majority %}
+    <!-- Fixed rewards table -->
+    <h3 style="font-size: 1rem;"><b>Table 1.</b> Fixed rewards for shirt choices</h3>
+    <div class="table-container">
+        <table class="table-responsive">
+            <thead>
+            <tr>
+                <th style="width: 40%;"></th>
+                <th style="text-align: center; color: red;">
+                    <i class="fa-solid fa-shirt"></i>
+                </th>
+                <th style="text-align: center; color: blue;">
+                    <i class="fa-solid fa-shirt"></i>
+                </th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td></td>
+                <td>{{ Constants.s }} points</td>
+                <td>0 points</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+    <br>
+    <h3 style="font-size: 1rem;"><b>Table 2.</b> Coordination rewards for shirt choices</h3>
+    <div class="table-container">
+        <table class="table-responsive">
+            <thead>
+            <tr>
+                <th style="width: 40%;">Aligned neighbors</th>
+
+                <th style="text-align: center; color: red;">
+                    <i class="fa-solid fa-shirt"></i>
+                </th>
+                <th style="text-align: center; color: blue;">
+                    <i class="fa-solid fa-shirt"></i>
+                </th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for row in table_data %}
+                <tr>
+                    <td>{{ row.c_n }}</td>
+                    <td>{{ row.wstar }} points</td>
+                    <td>{{ row.zstar }} points</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if round_number > 1 %}
+    {% endif %}
+    <br>
+    <div class="game-round-info">
+        <i class="far fa-clock"></i> Day: {{ round_number }}
+    </div>
+</div>
+    {% else %}
+    <!-- Fixed rewards table -->
+        <h3 style="font-size: 1rem;"><b>Table 1.</b> Fixed rewards for shirt choices</h3>
+        <div class="table-container">
+            <table class="table-responsive">
+                <thead>
+                <tr>
+                    <th style="width: 40%;"></th>
+
+
+                     <th style="text-align: center; color: red;">
+                        <i class="fa-solid fa-shirt"></i>
+                    </th>
+                    <th style="text-align: center; color: blue;">
+                        <i class="fa-solid fa-shirt"></i>
+                    </th>
+
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td></td>
+                    <td>0 points</td>
+                    <td>{{ Constants.e }} points</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <br>
+ <div class="game-round-info">
+        <i class="far fa-clock"></i> Day: {{ round_number }}
+    </div>
+    {% endif %}
+
+    <!-- Add a hidden field to keep track of whether players checked their neighbors' choices -->
+<input type="hidden" name="checked_neighbors" id="checked-neighbors-input" value="False">
+</div>
+
+
+{% endblock %}
+
+{% block custom_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const statsButton = document.getElementById("show-stats-btn");
+    const shirtCount = document.getElementById("shirt-count");
+    const hiddenInput = document.getElementById("checked-neighbors-input");
+
+    statsButton.addEventListener("click", function (event) {
+        // prevent the form from submitting
+        event.preventDefault();
+
+        // record that player clicked "what did my neighbors do"
+        hiddenInput.value = "True";
+
+        // toggle the visibility of the shirt count when the button is clicked
+        shirtCount.style.display = (shirtCount.style.display === "inline-block") ? "none" : "inline-block";
+    });
+});
+document.addEventListener("DOMContentLoaded", function () {
+    const questionContainer = document.querySelector(".question-container");
+    questionContainer.addEventListener("click", function () {
+        this.classList.toggle("active");
+    });
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+    const warningOverlay = document.getElementById("warning-overlay");
+
+    if (warningOverlay) {
+        setTimeout(() => {
+            warningOverlay.style.opacity = "0";
+
+            setTimeout(() => {
+                warningOverlay.remove();
+            }, 1000);
+
+        }, 10000);
+    }
+});
+
+
+    </script>
+{% endblock %}

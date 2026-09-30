@@ -1,0 +1,65 @@
+{{ block title }}
+Study information
+{{ endblock }}
+
+{{ block content }}
+
+<p>
+    You are invited to participate in an academic decision-making study called “The Fashion Dilemma”.
+
+    This is a computer-based interactive group study conducted by researchers at Utrecht University.
+</p>
+
+<p><strong>What you will be asked to do</strong></p>
+<ul>
+    <li>
+        Register for a participation time slot if you are interested.
+    </li>
+    <li>
+        Read the information letter and provide consent.
+    </li>
+    <li>
+        Complete study instructions and a few comprehension questions.
+    </li>
+</ul>
+
+
+<p><strong>Next steps</strong></p>
+<ul>
+    <li>
+        Choose whether you would like to participate at the selected time slot(s).
+    </li>
+    <li>
+        Read the detailed information letter carefully.
+    </li>
+    <li>
+        Provide consent to participate.
+    </li>
+    <li>
+        Continue to the instructions and comprehension checks.
+    </li>
+</ul>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const form = document.querySelector("form");
+
+    form.addEventListener("submit", function (event) {
+
+        const confirmContinue = confirm(
+            "Have you understood the information?\n\nYou will move to the next page and cannot go back."
+        );
+
+        if (!confirmContinue) {
+            event.preventDefault();
+        }
+
+    });
+
+});
+</script>
+
+{{ next_button }}
+
+{{ endblock }}

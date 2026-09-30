@@ -1,0 +1,92 @@
+{{ block title }}
+Register
+{{ endblock }}
+
+{{ block content }}
+
+    <div class="mb-4">
+        <p>{{ form.participate.label }}</p>
+        {{ form.participate }}
+    </div>
+
+    <div id="timeslot-div" class="mb-4 mt-3" style="display:none;">
+        <p>{{ form.time_slots.label }}</p>
+        {{ form.time_slots }}
+    </div>
+
+    <button type="submit" class="btn btn-primary" id="next-btn">
+        Next
+    </button>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+
+            const radios = document.querySelectorAll('input[name="participate"]');
+            const timeslotDiv = document.getElementById("timeslot-div");
+            const form = document.querySelector("form");
+
+            function toggleTimeSlot() {
+                const selected = document.querySelector('input[name="participate"]:checked');
+
+                if (selected && selected.value === "True") {
+                    timeslotDiv.style.display = "block";
+                } else {
+                    timeslotDiv.style.display = "none";
+                }
+            }
+
+            function hasFormError() {
+                const participate = document.querySelector('input[name="participate"]:checked');
+                const timeslot = document.querySelector('select[name="time_slots"]');
+
+
+                if (participate && participate.value === "True") {
+                    if (!timeslot || !timeslot.value) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            function getConfirmMessage() {
+                const participate = document.querySelector('input[name="participate"]:checked');
+                const timeslot = document.querySelector('select[name="time_slots"]');
+
+                if (!participate) {
+                    return "Please select whether you want to participate.";
+                }
+
+                if (participate.value === "False") {
+                    return "Are you sure you don't want to participate? You cannot undo your decision.";
+                }
+
+                if (participate.value === "True") {
+                    const timeslotText = timeslot && timeslot.value
+                        ? timeslot.options[timeslot.selectedIndex].text
+                        : "[timeslot]";
+
+                    return "Are you sure you want to participate at " + timeslotText + "?";
+                }
+
+                return "Are you sure you want to continue?";
+            }
+
+            radios.forEach(radio => {
+                radio.addEventListener("change", toggleTimeSlot);
+            });
+
+            toggleTimeSlot();
+
+            form.addEventListener("submit", function (event) {
+                if (!hasFormError()) {
+                    const confirmContinue = confirm(getConfirmMessage());
+
+                    if (!confirmContinue) {
+                        event.preventDefault();
+                    }
+                }
+            });
+        });
+</script>
+
+{{ endblock }}
