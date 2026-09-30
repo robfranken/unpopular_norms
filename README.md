@@ -3,6 +3,8 @@ The emergence of an unpopular norm in a social network experiment
 
 This repository contains code and data accompanying the paper “The emergence of an unpopular norm in a social network experiment.” 
 
+![Experiment](archive/figure.png)
+
 ## Replication materials
 
 The repository includes R-scripts for:
